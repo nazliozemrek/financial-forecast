@@ -17,7 +17,7 @@ const Header = ({ onAddEvent,onQuickSim, currentDate, onPrevMonth, onNextMonth }
                 onClick={onQuickSim}
                 className="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all duration-200 font-medium shadow-lg hover:shadow-blue-500/25"
               >
-                Quick Sim
+                Visual Forecast
               </button>
               <button
                 onClick={onAddEvent}

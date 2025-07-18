@@ -1,11 +1,14 @@
 import React from 'react';
+import type { BalanceEntry } from '../types';
 
 interface QuickSimModalProps {
   quickSimDate: string;
   setQuickSimDate: (date: string) => void;
   initialBalance: number;
   setInitialBalance: (value: number) => void;
-  quickSimResult: any;
+  quickSimResult: BalanceEntry | null;
+  skipAnimation: boolean;
+  setSkipAnimation?: (value: boolean) => void;
   onSimulate: () => void;
   onClose: () => void;
 }
@@ -16,6 +19,8 @@ const QuickSimModal: React.FC<QuickSimModalProps> = ({
   initialBalance,
   setInitialBalance,
   quickSimResult,
+  skipAnimation,
+  setSkipAnimation,
   onSimulate,
   onClose
 }) => {
@@ -78,6 +83,18 @@ const QuickSimModal: React.FC<QuickSimModalProps> = ({
             </div>
           )}
         </div>
+          <div>
+              <label className="inline-flex items-center space-x-2 text-white text-sm mt-2">
+                <input
+                  type="checkbox"
+                  id="skipAnimation"
+                  checked={skipAnimation}
+                  onChange={(e) => setSkipAnimation?.(e.target.checked)}
+                  className="form-checkbox h-4 w-4 text-blue-500"
+                />
+                <span>Skip animation and show results instantly</span>
+              </label>
+            </div>
 
         <div className="flex gap-3 mt-6">
           <button

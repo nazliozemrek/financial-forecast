@@ -17,6 +17,8 @@ const FinancialForecastApp = () => {
   const [quickSimDate, setQuickSimDate] = useState('');
   const [initialBalance, setInitialBalance] = useState(1000);
   const [quickSimResult, setQuickSimResult] = useState<BalanceEntry | null>(null);
+  const [skipAnimation, setSkipAnimation] = useState(false);
+
 
   const [events, setEvents] = useState<EventItem[]>([
     { id: 1, title: 'Salary', amount: 3000, type: 'income', frequency: 'monthly', startDate: new Date(2025, 0, 1), dayOfMonth: 1 },
@@ -106,6 +108,15 @@ const FinancialForecastApp = () => {
     setSimProgress([]);
     setQuickSimResult(null);
     setSimAnimatingDate(simDates[0].date);
+
+    if (skipAnimation) {
+      setSimProgress(simDates); // Fill progress all at once
+      setSimAnimatingDate(simDates[simDates.length - 1].date);
+      setQuickSimResult(simDates[simDates.length - 1]);
+      setIsSimAnimating(false);
+     return;
+}
+
 
     let i = 0;
     const animateNext = () => {
@@ -231,6 +242,8 @@ const FinancialForecastApp = () => {
               setQuickSimResult(null);
               setQuickSimDate('');
             }}
+            skipAnimation={skipAnimation}
+            setSkipAnimation={setSkipAnimation}
           />
         )}
 
