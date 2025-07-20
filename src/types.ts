@@ -9,6 +9,7 @@ export interface EventItem {
   startDate: Date;
   dayOfMonth?: number;
   dayOfWeek?: number;
+  disabled?: boolean
 }
 
 export interface BalanceEntry {

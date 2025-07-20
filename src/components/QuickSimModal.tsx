@@ -1,5 +1,5 @@
 import React from 'react';
-import type { BalanceEntry } from '../types';
+import type { BalanceEntry, EventItem } from '../types';
 
 interface QuickSimModalProps {
   quickSimDate: string;
@@ -8,9 +8,11 @@ interface QuickSimModalProps {
   setInitialBalance: (value: number) => void;
   quickSimResult: BalanceEntry | null;
   skipAnimation: boolean;
-  setSkipAnimation?: (value: boolean) => void;
+  setSkipAnimation: (value: boolean) => void;
   onSimulate: () => void;
   onClose: () => void;
+  events: EventItem[];
+  onToggleEvent: (id: number) => void;
 }
 
 const QuickSimModal: React.FC<QuickSimModalProps> = ({
@@ -22,81 +24,88 @@ const QuickSimModal: React.FC<QuickSimModalProps> = ({
   skipAnimation,
   setSkipAnimation,
   onSimulate,
-  onClose
+  onClose,
+  events,
+  onToggleEvent,
 }) => {
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div className="bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 p-6 w-full max-w-md">
-        <h3 className="text-xl font-bold text-white mb-6">Quick Balance Simulation</h3>
+      <div className="bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 p-6 w-full max-w-md text-white space-y-5">
+        <h3 className="text-xl font-bold">Quick Balance Simulation</h3>
 
-        <div className="space-y-4">
-          <div>
-            <label htmlFor="simDate" className="text-white text-sm">Target Date</label>
-            <input
-              id="simDate"
-              type="date"
-              value={quickSimDate}
-              onChange={(e) => setQuickSimDate(e.target.value)}
-              title="Target date for simulation"
-              className="w-full p-3 bg-white/10 border border-white/20 rounded-xl text-white"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="startBalance" className="text-white text-sm">Initial Balance</label>
-            <input
-              id="startBalance"
-              type="number"
-              value={initialBalance}
-              onChange={(e) => setInitialBalance(parseFloat(e.target.value) || 0)}
-              title="Starting balance"
-              placeholder="e.g. 1000"
-              step="0.01"
-              className="w-full p-3 bg-white/10 border border-white/20 rounded-xl text-white"
-            />
-          </div>
-
-          {quickSimResult && (
-            <div className="bg-white/10 p-4 rounded-xl text-sm text-white space-y-2">
-              {quickSimResult.error ? (
-                <p className="text-red-400">{quickSimResult.error}</p>
-              ) : (
-                <>
-                  <p><strong>Date:</strong> {new Date(quickSimResult.date).toLocaleDateString()}</p>
-                  <p className={`${quickSimResult.balance >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                    <strong>Projected Balance:</strong> ${quickSimResult.balance.toFixed(2)}
-                  </p>
-                  {quickSimResult.dayAmount !== 0 && (
-                    <p className={`${quickSimResult.dayAmount > 0 ? 'text-green-400' : 'text-red-400'}`}>
-                      <strong>Day Change:</strong> ${quickSimResult.dayAmount.toFixed(2)}
-                    </p>
-                  )}
-                  {quickSimResult.events?.length > 0 && (
-                    <ul className="list-disc ml-5">
-                      {quickSimResult.events.map((e: any, idx: number) => (
-                        <li key={idx}>{e.title} (${e.amount.toFixed(2)})</li>
-                      ))}
-                    </ul>
-                  )}
-                </>
-              )}
-            </div>
-          )}
+        <div>
+          <label className="text-sm">Target Date</label>
+          <input
+            type="date"
+            value={quickSimDate}
+            onChange={(e) => setQuickSimDate(e.target.value)}
+            className="w-full mt-1 p-3 bg-white/10 border border-white/20 rounded-xl text-white"
+          />
         </div>
-          <div>
-              <label className="inline-flex items-center space-x-2 text-white text-sm mt-2">
-                <input
-                  type="checkbox"
-                  id="skipAnimation"
-                  checked={skipAnimation}
-                  onChange={(e) => setSkipAnimation?.(e.target.checked)}
-                  className="form-checkbox h-4 w-4 text-blue-500"
-                />
-                <span>Skip animation and show results instantly</span>
-              </label>
-            </div>
 
-        <div className="flex gap-3 mt-6">
+        <div>
+          <label className="text-sm">Initial Balance</label>
+          <input
+            type="number"
+            value={initialBalance}
+            onChange={(e) => setInitialBalance(parseFloat(e.target.value) || 0)}
+            className="w-full mt-1 p-3 bg-white/10 border border-white/20 rounded-xl text-white"
+          />
+        </div>
+
+        <div className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            id="skipAnimation"
+            checked={skipAnimation}
+            onChange={(e) => setSkipAnimation(e.target.checked)}
+            className="w-4 h-4"
+          />
+          <label htmlFor="skipAnimation">Skip animation and show results instantly</label>
+        </div>
+
+        <div className="text-sm">
+          <p className="font-semibold mb-2">Toggle Events:</p>
+          <ul className="space-y-2 max-h-40 overflow-auto pr-2">
+            {events.map((event) => (
+              <li
+                key={event.id}
+                onClick={() => onToggleEvent(event.id)}
+                className={`cursor-pointer px-3 py-2 rounded-xl border text-sm flex justify-between items-center ${
+                  event.enabled
+                    ? 'bg-green-500/20 hover:bg-green-500/30'
+                    : 'bg-red-500/10 hover:bg-red-500/20 text-white/60'
+                }`}
+              >
+                <span>{event.title}</span>
+                <span>{event.enabled ? '✅' : '🚫'}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {quickSimResult && (
+          <div className="bg-white/10 p-4 rounded-xl text-sm text-white space-y-2 border border-white/20">
+            <p><strong>Date:</strong> {new Date(quickSimResult.date).toLocaleDateString()}</p>
+            <p className={quickSimResult.balance >= 0 ? 'text-green-400' : 'text-red-400'}>
+              <strong>Projected Balance:</strong> ${quickSimResult.balance.toFixed(2)}
+            </p>
+            {quickSimResult.dayAmount !== 0 && (
+              <p className={quickSimResult.dayAmount > 0 ? 'text-green-400' : 'text-red-400'}>
+                <strong>Day Change:</strong> ${quickSimResult.dayAmount.toFixed(2)}
+              </p>
+            )}
+            {quickSimResult.events?.length > 0 && (
+              <ul className="list-disc ml-5">
+                {quickSimResult.events.map((e, idx) => (
+                  <li key={idx}>{e.title} (${e.amount.toFixed(2)})</li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+
+        <div className="flex gap-3 pt-4">
           <button
             onClick={onSimulate}
             className="flex-1 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700"
