@@ -5,6 +5,7 @@ import EventModal from './components/EventModal';
 import QuickSimModal from './components/QuickSimModal';
 import EventSummary from './components/EventSummary';
 import BalanceChart from './components/BalanceChart';
+import { Modal } from './components/Modal';
 import type { EventItem, BalanceEntry } from './types';
 import { Toaster, toast } from 'react-hot-toast';
 
@@ -20,6 +21,8 @@ const FinancialForecastApp = () => {
   const [initialBalance, setInitialBalance] = useState(1000);
   const [quickSimResult, setQuickSimResult] = useState<BalanceEntry | null>(null);
   const [skipAnimation, setSkipAnimation] = useState(false);
+  const [showDayModal, setShowDayModal] = useState(false);
+  const [selectedDateDetail, setSelectedDateDetail] = useState<BalanceEntry | null>(null);
 
   const [events, setEvents] = useState<EventItem[]>([
     { id: 1, title: 'Salary', amount: 3000, type: 'income', frequency: 'monthly', startDate: new Date(2025, 0, 1), dayOfMonth: 1, enabled: true },
@@ -70,6 +73,12 @@ const FinancialForecastApp = () => {
     return balances;
   };
 
+  const handleDayClick = (day: BalanceEntry) => {
+    setSelectedDate(day.date);
+    setSelectedDateDetail(day);
+    setShowDayModal(true);
+  };
+
   const handleQuickSim = () => {
     if (!quickSimDate) {
       toast.error("Please select a target date first.");
@@ -81,6 +90,11 @@ const FinancialForecastApp = () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     simDate.setHours(0, 0, 0, 0);
+
+    if(simDate < today) { 
+      toast.error("Target date cannot be in the past.");
+      return;
+    }
 
     const balances = calculateDailyBalances(today, simDate);
     const simDates: BalanceEntry[] = [];
@@ -182,10 +196,23 @@ const FinancialForecastApp = () => {
 
   const calendarDays = generateCalendarDays();
 
+  const handleAddEvent = (eventData: EventItem) => {
+  const newItem: EventItem = {
+    ...eventData,
+    id: Date.now(),
+    amount: parseFloat(eventData.amount.toString()) * (eventData.type === 'expense' ? -1 : 1),
+    startDate: selectedDate,
+    enabled: true  // <-- important
+  };
+  setEvents(prev => [...prev, newItem]);
+  setShowEventModal(false);
+};
+
+
   return (
     <>
       <Toaster position="top-center" />
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+      <div className="min-h-screen font-sans bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
         <div className="max-w-6xl mx-auto p-6">
           <Header
             onAddEvent={() => setShowEventModal(true)}
@@ -205,6 +232,7 @@ const FinancialForecastApp = () => {
             selectedDate={selectedDate}
             setSelectedDate={setSelectedDate}
             simAnimatingDate={simAnimatingDate}
+            onDayClick={handleDayClick}
           />
 
           {quickSimResult && !isSimAnimating && (
@@ -234,7 +262,10 @@ const FinancialForecastApp = () => {
           )}
 
           {showEventModal && (
-            <EventModal onAdd={(event) => handleAddEvent(event)} onClose={() => setShowEventModal(false)} />
+            <EventModal
+              onAdd ={handleAddEvent}
+              onClose={() => setShowEventModal(false)}
+            />
           )}
 
           {showQuickSim && (
@@ -263,7 +294,25 @@ const FinancialForecastApp = () => {
             />
           )}
 
-          <EventSummary events={events} />
+          <EventSummary 
+            events={events}
+            onEdit={(event) => {
+              setSelectedDate(new Date(event,startDate));
+              setShowEventModal(true);
+            }}
+            onDelete={(id) => {
+              setEvents(prev  => prev.filter(e => e.id !== id));
+              toast.success('Event deleted successfully.');
+            }}
+
+            onToggleRecurring={(id) => {
+              setEvents(prev => 
+                prev.map(e =>
+                  e.id === id ? { ...e, recurring: e.recurring === false ? true : false} : e
+                )
+              );
+            }}
+            />
 
           {savedScenarios.length > 0 && (
             <div className="mt-6 text-white">
@@ -292,6 +341,12 @@ const FinancialForecastApp = () => {
                 ))}
               </ul>
             </div>
+          )}
+          {showDayModal && selectedDateDetail && (
+            <Modal
+              day={selectedDateDetail}
+              onClose={() => setShowDayModal(false)}
+            />
           )}
         </div>
       </div>

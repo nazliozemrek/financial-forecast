@@ -10,7 +10,10 @@ const Header = ({ onAddEvent,onQuickSim, currentDate, onPrevMonth, onNextMonth }
               <div className="p-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl">
                 <Calendar className="w-8 h-8 text-white" />
               </div>
-              Financial Forecast
+              <span className="text-4xl font-bold text-white drop-shadow-md font-sans">
+                Financial Forecast
+              </span>
+
             </h1>
             <div className="flex gap-3">
               <button

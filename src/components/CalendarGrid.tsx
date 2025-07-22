@@ -1,19 +1,22 @@
 import React from 'react';
 import type { FC } from 'react';
 import type { BalanceEntry } from '../types'; // Make sure this file exists and exports BalanceEntry
+import { DollarSign,Coffee,CalendarHeart,CalendarX } from 'lucide-react';
 
 interface CalendarGridProps {
   calendarDays: BalanceEntry[];
   selectedDate: Date;
   setSelectedDate: (date: Date) => void;
   simAnimatingDate: Date | null;
+  onDayClick: (day: BalanceEntry) => void;
 }
 
 const CalendarGrid: FC<CalendarGridProps> = ({
   calendarDays,
   selectedDate,
   setSelectedDate,
-  simAnimatingDate
+  simAnimatingDate,
+  onDayClick
 }) => {
   const isSameDay = (d1: Date, d2: Date): boolean =>
     d1.getDate() === d2.getDate() &&
@@ -45,11 +48,27 @@ const CalendarGrid: FC<CalendarGridProps> = ({
               ${isSameDay(day.date, selectedDate) ? 'border-2 border-green-400' : ''}
               ${isSameDay(day.date, simAnimatingDate ?? new Date(0)) ? 'ring-2 ring-yellow-400' : ''}
               border`}
-            onClick={() => setSelectedDate(day.date)}
+            onClick={() => onDayClick(day)}
           >
             <div className="text-white font-semibold mb-2">{day.date.getDate()}</div>
             <div className={`text-sm font-bold px-2 py-1 rounded-lg ${day.balance >= 0 ? 'text-green-400' : 'text-red-400'}`}>
               ${day.balance.toFixed(0)}
+            </div>
+            <div className="flex flex-wrap gap-1 items-center">
+              {day.events.slice(0, 3).map((event, idx) => (
+                <div key={idx} title={event.title}>
+                  {event.title.toLowerCase().includes('coffee') ? (
+                    <Coffee className="w-4 h-4 text-white/80"/>
+                  ) : event.amount > 0 ? (
+                    <DollarSign className="w-4 h-4 text-green-400" />
+                  ) : (
+                    <CalendarX className="w-4 h-4 text-red-400" />
+                  )}
+                </div>
+              ))}
+              {day.events.length > 3 && (
+                <span className="text-xs text-white/50">+{day.events.length - 3}</span>
+              )}
             </div>
           </div>
         ))}
