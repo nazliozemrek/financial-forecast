@@ -1,7 +1,24 @@
+import e from 'cors';
 import { on } from 'events';
 import { Calendar,Plus,ChevronLeft,ChevronRight } from 'lucide-react';
 
-const Header = ({ onAddEvent,onQuickSim, currentDate, onPrevMonth, onNextMonth }) => {
+interface HeaderProps {
+  onAddEvent: () => void;
+  onQuickSim: () => void;
+  currentDate: Date;
+  onPrevMonth: () => void;
+  onNextMonth: () => void;
+  extraButtons?: React.ReactNode;
+}
+
+const Header: React.FC<HeaderProps> = ({
+  onAddEvent,
+  onQuickSim,
+  currentDate,
+  onPrevMonth,
+  onNextMonth,
+  extraButtons,
+}) => {
 
     return (    
         <div className="bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 p-6 mb-6">
@@ -22,6 +39,7 @@ const Header = ({ onAddEvent,onQuickSim, currentDate, onPrevMonth, onNextMonth }
               >
                 Visual Forecast
               </button>
+              {extraButtons && extraButtons}
               <button
                 onClick={onAddEvent}
                 className="px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 transition-all duration-200 font-medium shadow-lg hover:shadow-green-500/25 flex items-center gap-2"

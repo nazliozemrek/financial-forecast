@@ -5,11 +5,12 @@ export interface EventItem {
   title: string;
   amount: number;
   type: 'income' | 'expense';
-  frequency: 'daily' | 'weekly' | 'monthly';
+  frequency: 'daily' | 'weekly' | 'monthly' | 'once';
   startDate: Date;
   dayOfMonth?: number;
   dayOfWeek?: number;
-  disabled?: boolean
+  disabled?: boolean;
+  enabled?: boolean;
 }
 
 export interface BalanceEntry {

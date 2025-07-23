@@ -8,6 +8,10 @@ import BalanceChart from './components/BalanceChart';
 import { Modal } from './components/Modal';
 import type { EventItem, BalanceEntry } from './types';
 import { Toaster, toast } from 'react-hot-toast';
+import { usePlaidLink } from 'react-plaid-link';
+import PlaidConnectButton from './components/PlaidConnectButton';
+import HeaderButton from './components/HeaderButton';
+import { Banknote , Download } from 'lucide-react';
 
 const FinancialForecastApp = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -23,6 +27,25 @@ const FinancialForecastApp = () => {
   const [skipAnimation, setSkipAnimation] = useState(false);
   const [showDayModal, setShowDayModal] = useState(false);
   const [selectedDateDetail, setSelectedDateDetail] = useState<BalanceEntry | null>(null);
+  const [linkToken, setLinkToken] = useState<string | null>(null);
+  const [transactions, setTransactions] = useState([]);
+
+  useEffect(() => {
+  const fetchLinkToken = async () => {
+    try {
+      const response = await fetch('http://localhost:3001/api/create-link-token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: 'demo-user' })
+      });
+      const data = await response.json();
+      setLinkToken(data.link_token);
+    } catch (err) {
+      console.error('Failed to fetch link token', err);
+    }
+  };
+  fetchLinkToken();
+}, []);
 
   const [events, setEvents] = useState<EventItem[]>([
     { id: 1, title: 'Salary', amount: 3000, type: 'income', frequency: 'monthly', startDate: new Date(2025, 0, 1), dayOfMonth: 1, enabled: true },
@@ -51,6 +74,7 @@ const FinancialForecastApp = () => {
     const eventStart = new Date(event.startDate);
     if (date < eventStart || !event.enabled) return false;
     switch (event.frequency) {
+      case 'once': return date.toDateString() === eventStart.toDateString();
       case 'daily': return true;
       case 'weekly': return date.getDay() === event.dayOfWeek;
       case 'monthly': return date.getDate() === event.dayOfMonth;
@@ -144,6 +168,29 @@ const FinancialForecastApp = () => {
     animateNext();
   };
 
+  const fetchTransactions = async () => {
+  const access_token = localStorage.getItem('access_token');
+  if (!access_token) {
+    toast.error('No access token found!');
+    return;
+  }
+
+  try {
+    const res = await fetch('http://localhost:3001/api/transactions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ access_token }),
+    });
+
+    const transactions = await res.json();
+    setTransactions(transactions);
+    toast.success(`Fetched ${transactions.length} transactions`);
+  } catch (error) {
+    console.error('Error fetching transactions:', error);
+    toast.error('Failed to fetch transactions');
+  }
+};
+
   const handleSaveScenario = () => {
     if (!quickSimResult) return;
     const name = prompt("Name this scenario:");
@@ -211,6 +258,16 @@ const FinancialForecastApp = () => {
 
   return (
     <>
+      {/* {linkToken && (
+        <PlaidConnectButton linkToken={linkToken} />
+      )}
+      <button
+        onClick={fetchTransactions}
+        className="mb-4 px-4 py-2 ml-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600"
+      >
+        Fetch Transactions
+      </button> */}
+
       <Toaster position="top-center" />
       <div className="min-h-screen font-sans bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
         <div className="max-w-6xl mx-auto p-6">
@@ -220,6 +277,24 @@ const FinancialForecastApp = () => {
             currentDate={currentDate}
             onPrevMonth={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1))}
             onNextMonth={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1))}
+            extraButtons={
+              <div className="flex gap-3">
+                {linkToken &&( 
+                  <HeaderButton
+                    label="Connect Bank"
+                    icon={Banknote}
+                    onClick={() => {}}
+                    color="bg-blue-600" 
+                  />
+                )}
+                <HeaderButton
+                  label="Fetch Transactions"
+                  icon={Download}
+                  onClick={fetchTransactions}
+                  color="bg-yellow-500"
+                />
+              </div>
+            }
           />
           {quickSimDate && (
             <p className="text-white text-sm mb-4">
@@ -234,6 +309,26 @@ const FinancialForecastApp = () => {
             simAnimatingDate={simAnimatingDate}
             onDayClick={handleDayClick}
           />
+          {transactions.length > 0 && (
+                <div className="mt-6 text-white">
+                  <h3 className="text-lg font-bold mb-2">Recent Transactions</h3>
+                  <ul className="space-y-2 max-h-64 overflow-y-auto pr-2">
+                    {transactions.map((tx, i) => (
+                      <li key={tx.transaction_id || i} className="bg-white/10 p-3 rounded-xl flex justify-between items-center">
+                        <div>
+                          <p className="font-semibold">{tx.name}</p>
+                          <p className="text-sm text-white/70">
+                            {tx.date} — {tx.personal_finance_category?.primary || 'Uncategorized'}
+                          </p>
+                        </div>
+                        <span className={tx.amount < 0 ? "text-green-400" : "text-red-400"}>
+                          ${Math.abs(tx.amount).toFixed(2)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
           {quickSimResult && !isSimAnimating && (
             <div className="mt-6 bg-white/10 border border-white/20 p-4 rounded-xl text-white">
@@ -259,6 +354,7 @@ const FinancialForecastApp = () => {
                 💾 Save Scenario
               </button>
             </div>
+            
           )}
 
           {showEventModal && (
