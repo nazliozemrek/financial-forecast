@@ -26,6 +26,8 @@ router.post('/exchange-public-token', async (req, res) => {
 
     // Save access_token securely in a DB — here we just return it for test
     res.json({ access_token });
+    localStorage.setItem('access_token',response.access_token);
+    setAccessToken(response.access_token);
   } catch (error) {
     console.error('Failed to exchange token:', error);
     res.status(500).json({ error: 'Token exchange failed' });

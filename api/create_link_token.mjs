@@ -2,7 +2,11 @@ import express from 'express';
 import { Configuration, PlaidApi, PlaidEnvironments } from 'plaid';
 import dotenv from 'dotenv';
 
-dotenv.config();
+
+console.log("🧠 create_link_token.mjs loaded");
+dotenv.config({path:'../.env'});
+
+
 
 const config = new Configuration({
   basePath: PlaidEnvironments[process.env.PLAID_ENV || 'sandbox'],

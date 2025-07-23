@@ -8,10 +8,12 @@ import BalanceChart from './components/BalanceChart';
 import { Modal } from './components/Modal';
 import type { EventItem, BalanceEntry } from './types';
 import { Toaster, toast } from 'react-hot-toast';
-import { usePlaidLink } from 'react-plaid-link';
 import PlaidConnectButton from './components/PlaidConnectButton';
 import HeaderButton from './components/HeaderButton';
-import { Banknote , Download } from 'lucide-react';
+import ConfirmModal from './components/ConfirmModal';
+import { Banknote, Download } from 'lucide-react';
+import { PlugZap } from 'lucide-react';
+import { detectRecurringTransactions } from './utils/detectRecurringTransactions';
 
 const FinancialForecastApp = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -29,6 +31,8 @@ const FinancialForecastApp = () => {
   const [selectedDateDetail, setSelectedDateDetail] = useState<BalanceEntry | null>(null);
   const [linkToken, setLinkToken] = useState<string | null>(null);
   const [transactions, setTransactions] = useState([]);
+  const [showDisconnectModal, setShowDisconnectModal] = useState(false);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
 
   useEffect(() => {
   const fetchLinkToken = async () => {
@@ -46,6 +50,33 @@ const FinancialForecastApp = () => {
   };
   fetchLinkToken();
 }, []);
+
+useEffect(() => {
+  const token = localStorage.getItem('access_token');
+  if (token) setAccessToken(token);
+}, []);
+const exchangePublicToken = async (public_token: string) => {
+  try {
+    const response = await fetch('http://localhost:3001/api/exchange-token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ public_token }),
+    });
+
+    const data = await response.json();
+    if (data.access_token) {
+      localStorage.setItem('access_token', data.access_token);
+      setAccessToken(data.access_token);
+      toast.success("Bank account linked successfully");
+    } else {
+      toast.error("No access token returned");
+    }
+  } catch (error) {
+    console.error('❌ Token exchange error:', error);
+    toast.error("Failed to exchange token");
+  }
+};
+
 
   const [events, setEvents] = useState<EventItem[]>([
     { id: 1, title: 'Salary', amount: 3000, type: 'income', frequency: 'monthly', startDate: new Date(2025, 0, 1), dayOfMonth: 1, enabled: true },
@@ -169,27 +200,37 @@ const FinancialForecastApp = () => {
   };
 
   const fetchTransactions = async () => {
-  const access_token = localStorage.getItem('access_token');
-  if (!access_token) {
-    toast.error('No access token found!');
-    return;
-  }
+    const access_token = localStorage.getItem('access_token');
+    if (!access_token) {
+      toast.error('No access token found!');
+      return;
+    }
 
-  try {
-    const res = await fetch('http://localhost:3001/api/transactions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ access_token }),
-    });
+    try {
+      const res = await fetch('http://localhost:3001/api/transactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ access_token }),
+      });
 
-    const transactions = await res.json();
-    setTransactions(transactions);
-    toast.success(`Fetched ${transactions.length} transactions`);
-  } catch (error) {
-    console.error('Error fetching transactions:', error);
-    toast.error('Failed to fetch transactions');
-  }
-};
+      const transactions = await res.json();
+      toast.success(`Fetched ${transactions.length} transactions!`);
+
+      const recurring = detectRecurringTransactions(transactions);
+      console.log('Detected Recurring Transactions:', recurring);
+
+      const newRecurringEvents = recurring.map((r, index) => ({
+        id: Date.now() + index,
+        type: 'expense',
+        enabled: true,
+        ...r
+      }));
+      setEvents(prev => [...prev, ...newRecurringEvents]);
+    } catch (error) {
+      console.error('Error fetching transactions:', error);
+      toast.error('Failed to fetch transactions');
+    }
+  };
 
   const handleSaveScenario = () => {
     if (!quickSimResult) return;
@@ -255,6 +296,44 @@ const FinancialForecastApp = () => {
   setShowEventModal(false);
 };
 
+const mapTransactionsToEvents = (transactions: any[]): EventItem[] => {
+  return transactions.map((tx,index) => ({
+    id: Date.now() + index,
+    title: tx.name || 'Transaction',
+    amount: tx.amount * -1,
+    type : tx.amount > 0 ? 'income' : 'expense',
+    frequency: 'once',
+    startDate: new Date(tx.date),
+    isPlaid: true,
+  }));
+};
+const handleDisconnect = async () => {
+  const token = accessToken || localStorage.getItem('access_token');
+
+  if (!token) {
+    console.warn("⚠️ No token available to disconnect");
+    toast.error("No access token to disconnect.");
+    return;
+  }
+
+  try {
+    const response = await fetch('http://localhost:3001/api/disconnect', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ access_token: token }),
+    });
+
+    if (!response.ok) throw new Error('Disconnection failed');
+
+    localStorage.removeItem('access_token');
+    setAccessToken(null);
+    setShowDisconnectModal(false);
+    toast.success('Disconnected successfully');
+  } catch (error) {
+    console.error('❌ Error disconnecting:', error);
+    toast.error('Failed to disconnect.');
+  }
+};
 
   return (
     <>
@@ -279,12 +358,17 @@ const FinancialForecastApp = () => {
             onNextMonth={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1))}
             extraButtons={
               <div className="flex gap-3">
-                {linkToken &&( 
+                {linkToken && !localStorage.getItem('access_token') ? (
+                  <PlaidConnectButton
+                    linkToken={linkToken}
+                    setAccessToken={setAccessToken}
+                  />
+                ) : (
                   <HeaderButton
-                    label="Connect Bank"
-                    icon={Banknote}
-                    onClick={() => {}}
-                    color="bg-blue-600" 
+                    label="Disconnect"
+                    icon={PlugZap}
+                    onClick={() => setShowDisconnectModal(true)}
+                    color="bg-red-600"
                   />
                 )}
                 <HeaderButton
@@ -445,6 +529,12 @@ const FinancialForecastApp = () => {
             />
           )}
         </div>
+        <ConfirmModal
+          isOpen={showDisconnectModal}
+          onConfirm={handleDisconnect}
+          onCancel={() => setShowDisconnectModal(false)}
+          message="Are you sure you want to disconnect your bank account?"
+        />
       </div>
     </>
   );

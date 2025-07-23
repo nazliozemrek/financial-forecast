@@ -11,6 +11,7 @@ export interface EventItem {
   dayOfWeek?: number;
   disabled?: boolean;
   enabled?: boolean;
+  isPlaid?: boolean;
 }
 
 export interface BalanceEntry {
@@ -19,4 +20,10 @@ export interface BalanceEntry {
   dayAmount: number;
   events: EventItem[];
   isCurrentMonth: boolean;
+}
+
+export interface Transaction {
+  name: string;
+  amount: number;
+  date: string; // ISO date string
 }
