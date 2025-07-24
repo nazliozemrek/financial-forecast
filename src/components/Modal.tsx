@@ -20,7 +20,7 @@ export const Modal = ({ day, onClose }: ModalProps) => {
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
       <div className="bg-slate-900 p-6 rounded-xl max-w-md w-full relative text-white shadow-2xl">
-        <button onClick={onClose} className="absolute top-3 right-3 text-white hover:text-red-400">
+        <button onClick={onClose} className="px-4 py-2 bg-white/10 backdrop-blur-md text-white rounded-lg border border-white/20 hover:bg-white/20 transition-all shadow-md">
           <X className="w-5 h-5" />
         </button>
 

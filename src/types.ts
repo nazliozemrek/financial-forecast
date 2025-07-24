@@ -27,3 +27,11 @@ export interface Transaction {
   amount: number;
   date: string; // ISO date string
 }
+export interface SavedScenario {
+  id:string;
+  name:string;
+  date:string;
+  balance:number;
+  dayAmount: number;
+  events:EventItem[];
+}

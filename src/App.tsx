@@ -6,7 +6,7 @@ import QuickSimModal from './components/QuickSimModal';
 import EventSummary from './components/EventSummary';
 import BalanceChart from './components/BalanceChart';
 import { Modal } from './components/Modal';
-import type { EventItem, BalanceEntry } from './types';
+import type { EventItem, BalanceEntry,SavedScenario } from './types';
 import { Toaster, toast } from 'react-hot-toast';
 import PlaidConnectButton from './components/PlaidConnectButton';
 import HeaderButton from './components/HeaderButton';
@@ -14,8 +14,12 @@ import ConfirmModal from './components/ConfirmModal';
 import { Banknote, Download } from 'lucide-react';
 import { PlugZap } from 'lucide-react';
 import { detectRecurringTransactions } from './utils/detectRecurringTransactions';
+import SavedScenarios from './components/SavedScenarios';
+import { PlaidLinkButton } from './components/PlaidLinkButton';
+
 
 const FinancialForecastApp = () => {
+  const currentUser = { uid:'demo-user'};
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showEventModal, setShowEventModal] = useState(false);
@@ -30,9 +34,21 @@ const FinancialForecastApp = () => {
   const [showDayModal, setShowDayModal] = useState(false);
   const [selectedDateDetail, setSelectedDateDetail] = useState<BalanceEntry | null>(null);
   const [linkToken, setLinkToken] = useState<string | null>(null);
-  const [transactions, setTransactions] = useState([]);
+  const [transactions, setTransactions] = useState<any[]>([]);
   const [showDisconnectModal, setShowDisconnectModal] = useState(false);
   const [accessToken, setAccessToken] = useState<string | null>(null);
+  
+
+  const handleSuccess = async (publicToken: string) => {
+    const res = await fetch('https://localhost:3001/api/exchange-token', {
+      method: 'POST',
+      headers: {'Content-Type' : 'application/json'},
+      body: JSON.stringify({public_token:publicToken}),
+
+    });
+    const data = await res.json();
+    console.log('Access token:',data.access_token);
+  }
 
   useEffect(() => {
   const fetchLinkToken = async () => {
@@ -199,7 +215,7 @@ const exchangePublicToken = async (public_token: string) => {
     animateNext();
   };
 
-  const fetchTransactions = async () => {
+  const fetchTransactions = async (retryCount = 0) => {
     const access_token = localStorage.getItem('access_token');
     if (!access_token) {
       toast.error('No access token found!');
@@ -212,11 +228,30 @@ const exchangePublicToken = async (public_token: string) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ access_token }),
       });
+     
 
-      const transactions = await res.json();
-      toast.success(`Fetched ${transactions.length} transactions!`);
+      const data = await res.json();
+      if(data.error_code === 'PRODUCT_NOT_READY'){
+        if(retryCount < 5 ) {
+          console.warn(`Transactions not ready,retrying in 3s(attempr ${retryCount  + 1})...`);
+          setTimeout(() => fetchTransactions(retryCount + 1),3000);
+          return;
+        } else {
+          toast.error('Plaid product not ready after multiple attempts.')
+        }
+      }
 
-      const recurring = detectRecurringTransactions(transactions);
+       if(!Array.isArray(data.transactions)){
+        console.error('Invalid transactions data;',data);
+        toast.error('Failed to fetch valid transactions');
+        return;
+      }
+      setTransactions(data.transactions);
+      toast.success(`Fetched ${data.transactions.length} transactions!`);
+
+      
+
+      const recurring = detectRecurringTransactions(data.transactions);
       console.log('Detected Recurring Transactions:', recurring);
 
       const newRecurringEvents = recurring.map((r, index) => ({
@@ -237,7 +272,7 @@ const exchangePublicToken = async (public_token: string) => {
     const name = prompt("Name this scenario:");
     if (!name) return;
     const newScenario = {
-      id: Date.now(),
+      id: crypto.randomUUID(),
       name,
       date: quickSimResult.date,
       balance: quickSimResult.balance,
@@ -250,9 +285,10 @@ const exchangePublicToken = async (public_token: string) => {
     toast.success(`Scenario "${name}" saved!`);
   };
 
-  const handleDeleteScenario = (id: number) => {
+  const handleDeleteScenario = (id: string) => {
     const updated = savedScenarios.filter(s => s.id !== id);
     setSavedScenarios(updated);
+    const storageKey = `simScenarios-${currentUser.uid}`
     localStorage.setItem('simScenarios', JSON.stringify(updated));
     toast.success("Scenario deleted.");
   };
@@ -268,6 +304,16 @@ const exchangePublicToken = async (public_token: string) => {
     end.setDate(end.getDate() + (6 - last.getDay()));
 
     const balances = calculateDailyBalances(start, end);
+
+    const eventMap = events.reduce((acc,event) => {
+      const dateStr = event.startDate;
+      if(!acc[dateStr]) acc[dateStr] = [];
+      acc[dateStr].push(event);
+      return acc;
+    }, {} as Record<string,typeof events>);
+
+
+
     const days: BalanceEntry[] = [];
     const temp = new Date(start);
     while (temp <= end) {
@@ -348,8 +394,8 @@ const handleDisconnect = async () => {
       </button> */}
 
       <Toaster position="top-center" />
-      <div className="min-h-screen font-sans bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-        <div className="max-w-6xl mx-auto p-6">
+      <div className="min-h-screen w-full bg-transparent from-slate-900 via-purple-900 to-slate-900">
+        <div className="animate-fade-in duration-700 delay-150 max-w-6xl mx-auto p-6">
           <Header
             onAddEvent={() => setShowEventModal(true)}
             onQuickSim={() => setShowQuickSim(true)}
@@ -362,6 +408,17 @@ const handleDisconnect = async () => {
                   <PlaidConnectButton
                     linkToken={linkToken}
                     setAccessToken={setAccessToken}
+                    onTransactionsFetched={(txs) => {
+                      setTransactions(txs);
+                      const recurring = detectRecurringTransactions(txs);
+                      const newRecurringEvents = recurring.map((r,index) => ({
+                        id:Date.now() + index,
+                        type:'expense',
+                        enabled: true,
+                        ...r
+                      }));
+                      setEvents(prev => [...prev,...newRecurringEvents]);
+                    }}
                   />
                 ) : (
                   <HeaderButton
@@ -371,13 +428,9 @@ const handleDisconnect = async () => {
                     color="bg-red-600"
                   />
                 )}
-                <HeaderButton
-                  label="Fetch Transactions"
-                  icon={Download}
-                  onClick={fetchTransactions}
-                  color="bg-yellow-500"
-                />
+                <PlaidConnectButton onSuccess= {handleSuccess}/>
               </div>
+              
             }
           />
           {quickSimDate && (
@@ -385,14 +438,16 @@ const handleDisconnect = async () => {
               🎯 <strong>Target Date Selected:</strong> {quickSimDate}
             </p>
           )}
-
-          <CalendarGrid
+        <div className='animate-fade-in'>
+           <CalendarGrid
             calendarDays={calendarDays}
             selectedDate={selectedDate}
             setSelectedDate={setSelectedDate}
             simAnimatingDate={simAnimatingDate}
             onDayClick={handleDayClick}
           />
+        </div>
+         
           {transactions.length > 0 && (
                 <div className="mt-6 text-white">
                   <h3 className="text-lg font-bold mb-2">Recent Transactions</h3>
@@ -493,7 +548,7 @@ const handleDisconnect = async () => {
               );
             }}
             />
-
+{/* 
           {savedScenarios.length > 0 && (
             <div className="mt-6 text-white">
               <h3 className="text-lg font-bold mb-2">💼 Saved Scenarios</h3>
@@ -521,7 +576,16 @@ const handleDisconnect = async () => {
                 ))}
               </ul>
             </div>
+          )} */}
+          {currentUser && savedScenarios.length > 0 && (
+             <SavedScenarios
+            scenarios={savedScenarios}
+            onLoad={(events) => setEvents(events)}                    
+            onDelete={handleDeleteScenario}
+          />
           )}
+         
+          
           {showDayModal && selectedDateDetail && (
             <Modal
               day={selectedDateDetail}

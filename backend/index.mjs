@@ -50,19 +50,34 @@ app.post('/api/exchange-token', async (req, res) => {
 
 app.post('/api/transactions', async (req, res) => {
   const { access_token } = req.body;
+  let retries = 0;
 
-  try {
+  while (retries < 5) {
+    try {
     const response = await plaidClient.transactionsGet({
       access_token,
       start_date: '2024-01-01',
       end_date: '2025-12-31',
     });
 
-    res.json(response.data.transactions);
-  } catch (error) {
-    console.error('❌ Fetch transactions failed:', error.response?.data || error.message);
-    res.status(500).json({ error: 'Failed to fetch transactions' });
+    const txs = response.data.transactions;
+    if(Array.isArray(txs)){
+      console.log(`Transactions fetched:${txs.length}`);
+      return res.json({transactions: txs});
+    }
+    console.warn('transactions not an array; retrying',txs);
+     } catch (error) {
+      const errorData = error.response?.data;
+      if(errorData?.error_code === 'PRODUCT_NOT_READY'){
+        console.warn(`Attempt ${retries+1}: PRODUCT_NOT_READY`);
+      } else {
+        return res.status(500).json({ error:errorData || error.message});
+      }
   }
+  await new Promise(r => setTimeout(r,3000));
+  retries ++;
+  }
+  return res.status(500).json({error:'Timet out waiting for transactions to be ready.'})
 });
 
 app.post('/api/disconnect', async (req, res) => {

@@ -29,7 +29,7 @@ const CalendarGrid: FC<CalendarGridProps> = ({
   };
 
   return (
-    <div className="bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 p-6 mt-4">
+    <div className="bg-white/10 backdrop-blur-md shadow-xl rounded-2xl border border-white/20 p-6 mt-4">
       <div className="grid grid-cols-7 gap-4 mb-4">
         {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
           <div key={day} className="text-center py-4 text-white/80 font-semibold text-sm uppercase tracking-wider">
@@ -42,7 +42,7 @@ const CalendarGrid: FC<CalendarGridProps> = ({
         {calendarDays.map((day, i) => (
           <div
             key={i}
-            className={`relative p-4 min-h-28 rounded-xl transition-all cursor-pointer
+            className={`hover:scale-105 hover:border-white/30 transform transition-transform duration-200
               ${day.isCurrentMonth ? 'bg-white/10 hover:bg-white/20 border-white/20' : 'bg-white/5 hover:bg-white/10 border-white/10'}
               ${isToday(day.date) ? 'ring-2 ring-blue-500' : ''}
               ${isSameDay(day.date, selectedDate) ? 'border-2 border-green-400' : ''}

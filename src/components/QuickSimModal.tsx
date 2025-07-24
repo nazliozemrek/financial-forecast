@@ -108,13 +108,13 @@ const QuickSimModal: React.FC<QuickSimModalProps> = ({
         <div className="flex gap-3 pt-4">
           <button
             onClick={onSimulate}
-            className="flex-1 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700"
+            className="px-4 py-2 bg-white/10 backdrop-blur-md text-white rounded-lg border border-white/20 hover:bg-white/20 transition-all shadow-md"
           >
             Simulate
           </button>
           <button
             onClick={onClose}
-            className="flex-1 py-3 border border-white/20 text-white rounded-xl hover:bg-white/10"
+            className="px-4 py-2 bg-white/10 backdrop-blur-md text-white rounded-lg border border-white/20 hover:bg-white/20 transition-all shadow-md"
           >
             Close
           </button>

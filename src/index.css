@@ -1,12 +1,15 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* Global Styles */
+
 body {
-  font-family: 'Inter', sans-serif;
-  background-color: hsl(var(--background));
-  color: hsl(var(--foreground));
+  font-family: 'Manrope',ui-sans-serif,system-ui,sans-serif;
+  @apply antialiased text-white bg-gradient-to-br from-[#1a1a1a] via-[#111827] to-[#0f172a];
+  @apply bg-gradient-to-br from-[#1a1a1a] via-[#111827] to-[#0f172a] text-white;
+  font-family: 'Manrope', sans-serif;
 }
 
 /* Custom Theme Variables */
