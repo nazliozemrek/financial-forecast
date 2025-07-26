@@ -4,7 +4,7 @@ import dotenv from 'dotenv';
 
 
 console.log("🧠 create_link_token.mjs loaded");
-dotenv.config({path:'../.env'});
+dotenv.config({ path: new URL('../.env', import.meta.url).pathname });
 
 
 
@@ -24,7 +24,7 @@ const createLinkTokenRouter = express.Router();
 
 createLinkTokenRouter.post('/create-link-token', async (req, res) => {
   try {
-    const userId = req.body.userId || 'demo-user';
+    const userId = 'demo-user';
     const response = await plaidClient.linkTokenCreate({
       user: { client_user_id: userId },
       client_name: 'Finans App',
@@ -35,7 +35,7 @@ createLinkTokenRouter.post('/create-link-token', async (req, res) => {
 
     res.json({ link_token: response.data.link_token });
   } catch (err) {
-    console.error(err);
+    console.error("PLAID ERROR:",err.response?.data || err.message || err);
     res.status(500).json({ error: 'Unable to create link token' });
   }
 });

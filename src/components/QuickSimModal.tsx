@@ -29,7 +29,7 @@ const QuickSimModal: React.FC<QuickSimModalProps> = ({
   onToggleEvent,
 }) => {
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
       <div className="bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 p-6 w-full max-w-md text-white space-y-5">
         <h3 className="text-xl font-bold">Quick Balance Simulation</h3>
 
