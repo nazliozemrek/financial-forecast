@@ -11,6 +11,7 @@ import { Toaster, toast } from 'react-hot-toast';
 import PlaidConnectButton from './components/PlaidConnectButton';
 import HeaderButton from './components/HeaderButton';
 import ConfirmModal from './components/ConfirmModal';
+import SplashScreen from './components/SplashScreen';
 import { Banknote, Download } from 'lucide-react';
 import { PlugZap } from 'lucide-react';
 import { detectRecurringTransactions } from './utils/detectRecurringTransactions';
@@ -37,7 +38,18 @@ const FinancialForecastApp = () => {
   const [transactions, setTransactions] = useState<any[]>([]);
   const [showDisconnectModal, setShowDisconnectModal] = useState(false);
   const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [loading,setLoading]=useState(true);
+  const hasRealData = accessToken !== null || simProgress.length > 0;
   
+
+
+
+
+
+  useEffect(() => {
+    const timer = setTimeout(() => setLoading(false),2500 );
+    return () => clearTimeout(timer);
+  },[]);
 
   const handleSuccess = async (publicToken: string) => {
     const res = await fetch('https://localhost:3001/api/exchange-token', {
@@ -49,6 +61,11 @@ const FinancialForecastApp = () => {
     const data = await res.json();
     console.log('Access token:',data.access_token);
   }
+
+
+
+
+
 
   useEffect(() => {
   const fetchLinkToken = async () => {
@@ -382,17 +399,11 @@ const handleDisconnect = async () => {
 };
 
   return (
-    <>
-      {/* {linkToken && (
-        <PlaidConnectButton linkToken={linkToken} />
-      )}
-      <button
-        onClick={fetchTransactions}
-        className="mb-4 px-4 py-2 ml-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600"
-      >
-        Fetch Transactions
-      </button> */}
-
+   <>
+  {loading ? (
+    <SplashScreen />
+  ) : (
+    <div className="app-content">
       <Toaster position="top-center" />
       <div className="safe-top min-h-screen bg-gradient-to-b from-[#111827] to-[#1f2937] px-2 pt-4 pb-28 sm:px-4 flex flex-col">
         <div className="animate-fade-in duration-700 delay-150 max-w-6xl mx-auto p-6">
@@ -428,46 +439,79 @@ const handleDisconnect = async () => {
                     color="bg-red-600"
                   />
                 )}
-                <PlaidConnectButton onSuccess= {handleSuccess}/>
+                <PlaidConnectButton onSuccess={handleSuccess}/>
               </div>
-              
             }
           />
+
           {quickSimDate && (
             <p className="text-white text-sm mb-4">
               🎯 <strong>Target Date Selected:</strong> {quickSimDate}
             </p>
           )}
-        <div className='animate-fade-in'>
-           <CalendarGrid
-            calendarDays={calendarDays}
-            selectedDate={selectedDate}
-            setSelectedDate={setSelectedDate}
-            simAnimatingDate={simAnimatingDate}
-            onDayClick={handleDayClick}
-          />
-        </div>
-         
+
+          <div className='animate-fade-in'>
+            {hasRealData ? (
+              <>
+                <CalendarGrid
+                  calendarDays={calendarDays}
+                  selectedDate={selectedDate}
+                  setSelectedDate={setSelectedDate}
+                  simAnimatingDate={simAnimatingDate}
+                  onDayClick={handleDayClick}
+                />
+                {simProgress.length > 0 && (
+                  <BalanceChart data={simProgress} />
+                )}
+              </>
+            ) : (
+              <div className="text-white/60 text-center mt-10">
+                Connect your Bank or run a Quick Sim to start visualizing your forecast.
+              </div>
+            )}
+          </div>
+
+          {hasRealData && (
+            <EventSummary 
+              events={events}
+              onEdit={(event) => {
+                setSelectedDate(new Date(event.startDate));
+                setShowEventModal(true);
+              }}
+              onDelete={(id) => {
+                setEvents(prev  => prev.filter(e => e.id !== id));
+                toast.success('Event deleted successfully.');
+              }}
+              onToggleRecurring={(id) => {
+                setEvents(prev => 
+                  prev.map(e =>
+                    e.id === id ? { ...e, recurring: !e.recurring } : e
+                  )
+                );
+              }}
+            />
+          )}
+
           {transactions.length > 0 && (
-                <div className="mt-6 text-white">
-                  <h3 className="text-lg font-bold mb-2">Recent Transactions</h3>
-                  <ul className="space-y-2 max-h-64 overflow-y-auto pr-2">
-                    {transactions.map((tx, i) => (
-                      <li key={tx.transaction_id || i} className="bg-white/10 p-3 rounded-xl flex justify-between items-center">
-                        <div>
-                          <p className="font-semibold">{tx.name}</p>
-                          <p className="text-sm text-white/70">
-                            {tx.date} — {tx.personal_finance_category?.primary || 'Uncategorized'}
-                          </p>
-                        </div>
-                        <span className={tx.amount < 0 ? "text-green-400" : "text-red-400"}>
-                          ${Math.abs(tx.amount).toFixed(2)}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
+            <div className="mt-6 text-white">
+              <h3 className="text-lg font-bold mb-2">Recent Transactions</h3>
+              <ul className="space-y-2 max-h-64 overflow-y-auto pr-2">
+                {transactions.map((tx, i) => (
+                  <li key={tx.transaction_id || i} className="bg-white/10 p-3 rounded-xl flex justify-between items-center">
+                    <div>
+                      <p className="font-semibold">{tx.name}</p>
+                      <p className="text-sm text-white/70">
+                        {tx.date} — {tx.personal_finance_category?.primary || 'Uncategorized'}
+                      </p>
+                    </div>
+                    <span className={tx.amount < 0 ? "text-green-400" : "text-red-400"}>
+                      ${Math.abs(tx.amount).toFixed(2)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {quickSimResult && !isSimAnimating && (
             <div className="mt-6 bg-white/10 border border-white/20 p-4 rounded-xl text-white">
@@ -493,12 +537,11 @@ const handleDisconnect = async () => {
                 💾 Save Scenario
               </button>
             </div>
-            
           )}
 
           {showEventModal && (
             <EventModal
-              onAdd ={handleAddEvent}
+              onAdd={handleAddEvent}
               onClose={() => setShowEventModal(false)}
             />
           )}
@@ -529,63 +572,14 @@ const handleDisconnect = async () => {
             />
           )}
 
-          <EventSummary 
-            events={events}
-            onEdit={(event) => {
-              setSelectedDate(new Date(event,startDate));
-              setShowEventModal(true);
-            }}
-            onDelete={(id) => {
-              setEvents(prev  => prev.filter(e => e.id !== id));
-              toast.success('Event deleted successfully.');
-            }}
-
-            onToggleRecurring={(id) => {
-              setEvents(prev => 
-                prev.map(e =>
-                  e.id === id ? { ...e, recurring: e.recurring === false ? true : false} : e
-                )
-              );
-            }}
-            />
-{/* 
-          {savedScenarios.length > 0 && (
-            <div className="mt-6 text-white">
-              <h3 className="text-lg font-bold mb-2">💼 Saved Scenarios</h3>
-              <ul className="space-y-2">
-                {savedScenarios.map((s) => (
-                  <li key={s.id} className="bg-white/10 p-3 rounded-xl flex justify-between items-start">
-                    <div>
-                      <p className="font-semibold">{s.name}</p>
-                      <p className="text-sm text-white/70">{new Date(s.date).toLocaleDateString()} — ${s.balance.toFixed(2)}</p>
-                      {s.events?.length > 0 && (
-                        <ul className="text-xs mt-1 list-disc ml-4">
-                          {s.events.map((e: any, i: number) => (
-                            <li key={i}>{e.title}: ${e.amount.toFixed(2)}</li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => handleDeleteScenario(s.id)}
-                      className="text-red-400 hover:text-red-600 text-sm"
-                    >
-                      🗑 Delete
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )} */}
           {currentUser && savedScenarios.length > 0 && (
-             <SavedScenarios
-            scenarios={savedScenarios}
-            onLoad={(events) => setEvents(events)}                    
-            onDelete={handleDeleteScenario}
-          />
+            <SavedScenarios
+              scenarios={savedScenarios}
+              onLoad={(events) => setEvents(events)}
+              onDelete={handleDeleteScenario}
+            />
           )}
-         
-          
+
           {showDayModal && selectedDateDetail && (
             <Modal
               day={selectedDateDetail}
@@ -600,7 +594,10 @@ const handleDisconnect = async () => {
           message="Are you sure you want to disconnect your bank account?"
         />
       </div>
-    </>
+    </div>
+  )}
+</>
+
   );
 };
 
