@@ -394,7 +394,7 @@ const handleDisconnect = async () => {
       </button> */}
 
       <Toaster position="top-center" />
-      <div className="min-h-screen w-full bg-transparent from-slate-900 via-purple-900 to-slate-900">
+      <div className="safe-top min-h-screen bg-gradient-to-b from-[#111827] to-[#1f2937] px-2 pt-4 pb-28 sm:px-4 flex flex-col">
         <div className="animate-fade-in duration-700 delay-150 max-w-6xl mx-auto p-6">
           <Header
             onAddEvent={() => setShowEventModal(true)}

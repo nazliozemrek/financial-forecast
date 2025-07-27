@@ -44,13 +44,19 @@ const QuickSimModal: React.FC<QuickSimModalProps> = ({
         </div>
 
         <div>
-          <label className="text-sm">Initial Balance</label>
-          <input
-            type="number"
-            value={initialBalance}
-            onChange={(e) => setInitialBalance(parseFloat(e.target.value) || 0)}
-            className="w-full mt-1 p-3 bg-white/10 border border-white/20 rounded-xl text-white"
-          />
+          <label className="text-sm text-white mb-1 block">Initial Balance</label>
+          <div className="relative">
+              <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/70">$</span>
+              <input
+                type="text"
+                inputMode="numeric"
+                className="pl-6 pr-3 py-2 w-full bg-white/10 border border-white/30 rounded-md text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-green-500"
+                value={initialBalance}
+                onChange={(e) => setInitialBalance(Number(e.target.value))}
+                
+                
+              />
+          </div>
         </div>
 
         <div className="flex items-center gap-2 text-sm">

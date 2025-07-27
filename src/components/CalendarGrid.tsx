@@ -27,10 +27,16 @@ const CalendarGrid: FC<CalendarGridProps> = ({
     const today = new Date();
     return isSameDay(date, today);
   };
+  const formatBalance =  (balance:number) : string => {
+    if ( Math.abs(balance) >= 1000) {
+      return `${(balance / 1000).toFixed(1)}k`;
+    }
+    return balance.toFixed(0);
+  }
 
   return (
     <div className="bg-white/10 backdrop-blur-md shadow-xl rounded-2xl border border-white/20 p-6 mt-4">
-      <div className="grid grid-cols-7 gap-4 mb-4">
+      <div className="grid grid-cols-7 gap-[1px] bg-gray-800 text-xs sm:text-sm">
         {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
           <div key={day} className="text-center py-4 text-white/80 font-semibold text-sm uppercase tracking-wider">
             {day}
@@ -51,8 +57,8 @@ const CalendarGrid: FC<CalendarGridProps> = ({
             onClick={() => onDayClick(day)}
           >
             <div className="text-white font-semibold mb-2">{day.date.getDate()}</div>
-            <div className={`text-sm font-bold px-2 py-1 rounded-lg ${day.balance >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-              ${day.balance.toFixed(0)}
+            <div className={`text-sm font-bold px-2 py-1 rounded-lg ${day.balance >= 0 ? 'text-green-400' : 'text-red-400'} flex items-center justify-center`}>
+              ${formatBalance(day.balance)}
             </div>
             <div className="flex flex-wrap gap-1 items-center">
               {day.events.slice(0, 3).map((event, idx) => (
