@@ -5,7 +5,7 @@ export interface EventItem {
   title: string;
   amount: number;
   type: 'income' | 'expense';
-  frequency: 'daily' | 'weekly' | 'monthly' | 'once';
+  frequency: 'daily' | 'bi-weekly' | 'weekly' | 'monthly' | 'once';
   startDate: Date;
   dayOfMonth?: number;
   dayOfWeek?: number;

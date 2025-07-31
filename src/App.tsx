@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { collection, getDocs } from "firebase/firestore";
 import Header from './components/Header';
 import CalendarGrid from './components/CalendarGrid';
 import EventModal from './components/EventModal';
@@ -16,10 +17,26 @@ import { Banknote, Download } from 'lucide-react';
 import { PlugZap } from 'lucide-react';
 import { detectRecurringTransactions } from './utils/detectRecurringTransactions';
 import SavedScenarios from './components/SavedScenarios';
-import { PlaidLinkButton } from './components/PlaidLinkButton';
+import { useAuth } from './hooks/useAuth';
+import Login from './pages/Login';
+import { signOut } from 'firebase/auth';
+import { auth, db } from '../firebase/config';
+import ConnectedBanks from './components/ConnectedBanks';
 
 
 const FinancialForecastApp = () => {
+
+  const user = useAuth();
+  const [loading,setLoading]=useState(true);
+
+    useEffect(() => {
+    const timer = setTimeout(() => setLoading(false),2500 );
+    return () => clearTimeout(timer);
+  },[]);
+
+
+ 
+
   const currentUser = { uid:'demo-user'};
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -37,43 +54,33 @@ const FinancialForecastApp = () => {
   const [linkToken, setLinkToken] = useState<string | null>(null);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [showDisconnectModal, setShowDisconnectModal] = useState(false);
-  const [accessToken, setAccessToken] = useState<string | null>(null);
-  const [loading,setLoading]=useState(true);
-  const hasRealData = accessToken !== null || simProgress.length > 0;
+  // Remove accessToken state (migrated to bankConnections)
+  // const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [bankConnections, setBankConnections] = useState<{ accessToken: string; institution?: { name: string; institution_id?: string } }[]>([]);
+  
+  // New: hasRealData is true if there are any bank connections or simProgress
+  const hasRealData = bankConnections.length > 0 || simProgress.length > 0;
+  
+  
+
+
+
   
 
 
 
 
 
-  useEffect(() => {
-    const timer = setTimeout(() => setLoading(false),2500 );
-    return () => clearTimeout(timer);
-  },[]);
-
-  const handleSuccess = async (publicToken: string) => {
-    const res = await fetch('https://localhost:3001/api/exchange-token', {
-      method: 'POST',
-      headers: {'Content-Type' : 'application/json'},
-      body: JSON.stringify({public_token:publicToken}),
-
-    });
-    const data = await res.json();
-    console.log('Access token:',data.access_token);
-  }
 
 
-
-
-
-
-  useEffect(() => {
+useEffect(() => {
+  if (!user) return; // wait for user
   const fetchLinkToken = async () => {
     try {
       const response = await fetch('http://localhost:3001/api/create-link-token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: 'demo-user' })
+        body: JSON.stringify({ userId: user?.uid || 'demo-user' })
       });
       const data = await response.json();
       setLinkToken(data.link_token);
@@ -82,31 +89,39 @@ const FinancialForecastApp = () => {
     }
   };
   fetchLinkToken();
-}, []);
+}, [user]);
 
-useEffect(() => {
-  const token = localStorage.getItem('access_token');
-  if (token) setAccessToken(token);
-}, []);
+// Remove old effect for single access token
 const exchangePublicToken = async (public_token: string) => {
+  if (!user) {
+    console.warn("⚠️ No Firebase user found!");
+    return;
+  }
   try {
-    const response = await fetch('http://localhost:3001/api/exchange-token', {
+    const res = await fetch('/api/exchange_public_token', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ public_token }),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        public_token,
+        userId: user.uid,
+      }),
     });
-
-    const data = await response.json();
-    if (data.access_token) {
-      localStorage.setItem('access_token', data.access_token);
-      setAccessToken(data.access_token);
-      toast.success("Bank account linked successfully");
-    } else {
-      toast.error("No access token returned");
-    }
-  } catch (error) {
-    console.error('❌ Token exchange error:', error);
-    toast.error("Failed to exchange token");
+    const data = await res.json();
+    console.log("✅ Access token saved:", data.access_token);
+    setBankConnections(prev => [
+      ...prev,
+      {
+        accessToken: data.access_token,
+        institution: {
+          name: data.institution?.name || 'Unknown',
+          institution_id: data.institution?.institution_id
+        }
+      }
+    ]);
+  } catch (err) {
+    console.error("❌ Failed to exchange token:", err);
   }
 };
 
@@ -232,57 +247,58 @@ const exchangePublicToken = async (public_token: string) => {
     animateNext();
   };
 
-  const fetchTransactions = async (retryCount = 0) => {
-    const access_token = localStorage.getItem('access_token');
-    if (!access_token) {
-      toast.error('No access token found!');
+// New: Fetch all bank accounts and all their transactions
+const fetchTransactions = async () => {
+  if (!user) {
+    toast.error('User not loaded!');
+    return;
+  }
+  try {
+    // Fetch all bank accounts for the user
+    const bankAccountsRef = collection(db, `users/${user.uid}/bankAccounts`);
+    const bankSnapshot = await getDocs(bankAccountsRef);
+    const accessTokens: string[] = [];
+    bankSnapshot.forEach((doc) => {
+      const data = doc.data();
+      if (data.accessToken) accessTokens.push(data.accessToken);
+    });
+
+    if (accessTokens.length === 0) {
+      toast.error('No bank accounts connected!');
       return;
     }
 
-    try {
-      const res = await fetch('http://localhost:3001/api/transactions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ access_token }),
+    // Fetch and merge transactions from all tokens
+    const allTransactions: any[] = [];
+    for (const token of accessTokens) {
+      const res = await fetch("/api/transactions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ access_token: token }),
       });
-     
-
       const data = await res.json();
-      if(data.error_code === 'PRODUCT_NOT_READY'){
-        if(retryCount < 5 ) {
-          console.warn(`Transactions not ready,retrying in 3s(attempr ${retryCount  + 1})...`);
-          setTimeout(() => fetchTransactions(retryCount + 1),3000);
-          return;
-        } else {
-          toast.error('Plaid product not ready after multiple attempts.')
-        }
+      if (Array.isArray(data.transactions)) {
+        allTransactions.push(...data.transactions);
       }
-
-       if(!Array.isArray(data.transactions)){
-        console.error('Invalid transactions data;',data);
-        toast.error('Failed to fetch valid transactions');
-        return;
-      }
-      setTransactions(data.transactions);
-      toast.success(`Fetched ${data.transactions.length} transactions!`);
-
-      
-
-      const recurring = detectRecurringTransactions(data.transactions);
-      console.log('Detected Recurring Transactions:', recurring);
-
-      const newRecurringEvents = recurring.map((r, index) => ({
-        id: Date.now() + index,
-        type: 'expense',
-        enabled: true,
-        ...r
-      }));
-      setEvents(prev => [...prev, ...newRecurringEvents]);
-    } catch (error) {
-      console.error('Error fetching transactions:', error);
-      toast.error('Failed to fetch transactions');
     }
-  };
+    setTransactions(allTransactions);
+    toast.success(`Fetched ${allTransactions.length} transactions!`);
+
+    // Optionally: detect recurring transactions from all merged transactions
+    const recurring = detectRecurringTransactions(allTransactions);
+    console.log('Detected Recurring Transactions:', recurring);
+    const newRecurringEvents = recurring.map((r, index) => ({
+      id: Date.now() + index,
+      type: 'expense',
+      enabled: true,
+      ...r
+    }));
+    setEvents(prev => [...prev, ...newRecurringEvents]);
+  } catch (error) {
+    console.error('Error fetching transactions:', error);
+    toast.error('Failed to fetch transactions');
+  }
+};
 
   const handleSaveScenario = () => {
     if (!quickSimResult) return;
@@ -364,85 +380,102 @@ const mapTransactionsToEvents = (transactions: any[]): EventItem[] => {
     id: Date.now() + index,
     title: tx.name || 'Transaction',
     amount: tx.amount * -1,
-    type : tx.amount > 0 ? 'income' : 'expense',
+    type : tx.amount > 0 ? 'income' as const : 'expense' as const,
     frequency: 'once',
     startDate: new Date(tx.date),
     isPlaid: true,
   }));
 };
 const handleDisconnect = async () => {
-  const token = accessToken || localStorage.getItem('access_token');
-
-  if (!token) {
-    console.warn("⚠️ No token available to disconnect");
-    toast.error("No access token to disconnect.");
+  // Disconnect all bank accounts (or you can prompt for which to disconnect)
+  if (bankConnections.length === 0) {
+    toast.error("No bank connections to disconnect.");
     return;
   }
-
   try {
-    const response = await fetch('http://localhost:3001/api/disconnect', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ access_token: token }),
-    });
-
-    if (!response.ok) throw new Error('Disconnection failed');
-
-    localStorage.removeItem('access_token');
-    setAccessToken(null);
+    // Disconnect each bank connection
+    for (const { accessToken } of bankConnections) {
+      await fetch('http://localhost:3001/api/disconnect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ access_token: accessToken }),
+      });
+    }
+    setBankConnections([]);
     setShowDisconnectModal(false);
-    toast.success('Disconnected successfully');
+    toast.success('Disconnected all banks successfully');
   } catch (error) {
     console.error('❌ Error disconnecting:', error);
     toast.error('Failed to disconnect.');
   }
 };
 
+  // Handler for Plaid Connect
+  const handleConnectBank = () => {
+    const connectButton = document.querySelector<HTMLButtonElement>('button[data-plaid-link]');
+    if (connectButton) {
+      connectButton.click();
+    } else {
+      toast.error("Plaid Connect button not ready.");
+    }
+  };
+
   return (
-   <>
-  {loading ? (
-    <SplashScreen />
-  ) : (
-    <div className="app-content">
-      <Toaster position="top-center" />
-      <div className="safe-top min-h-screen bg-gradient-to-b from-[#111827] to-[#1f2937] px-2 pt-4 pb-28 sm:px-4 flex flex-col">
-        <div className="animate-fade-in duration-700 delay-150 max-w-6xl mx-auto p-6">
-          <Header
-            onAddEvent={() => setShowEventModal(true)}
-            onQuickSim={() => setShowQuickSim(true)}
-            currentDate={currentDate}
-            onPrevMonth={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1))}
-            onNextMonth={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1))}
-            extraButtons={
-              <div className="flex gap-3">
-                {linkToken && !localStorage.getItem('access_token') ? (
-                  <PlaidConnectButton
-                    linkToken={linkToken}
-                    setAccessToken={setAccessToken}
-                    onTransactionsFetched={(txs) => {
-                      setTransactions(txs);
-                      const recurring = detectRecurringTransactions(txs);
-                      const newRecurringEvents = recurring.map((r,index) => ({
-                        id:Date.now() + index,
-                        type:'expense',
-                        enabled: true,
-                        ...r
-                      }));
-                      setEvents(prev => [...prev,...newRecurringEvents]);
-                    }}
-                  />
-                ) : (
-                  <HeaderButton
-                    label="Disconnect"
-                    icon={PlugZap}
-                    onClick={() => setShowDisconnectModal(true)}
-                    color="bg-red-600"
-                  />
-                )}
-                <PlaidConnectButton onSuccess={handleSuccess}/>
-              </div>
-            }
-          />
+    <>
+      {loading ? (
+        <SplashScreen />
+      ) : !user ? (
+        <Login />
+      ) : (
+        <div className="min-h-screen w-full flex flex-col items-center bg-gradient-to-br from-[#1a1a1a] via-[#111827] to-[#0f172a]">
+          <main className="w-full max-w-6xl px-4">
+            <Toaster position="top-center" />
+            <div className="safe-top">
+              <div className="animate-fade-in duration-700 delay-150 pt-4 pb-28 max-w-[100%] sm:max-w-6xl mx-auto ">
+                <Header
+                  onAddEvent={() => setShowEventModal(true)}
+                  onQuickSim={() => setShowQuickSim(true)}
+                  currentDate={currentDate}
+                  onPrevMonth={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1))}
+                  onNextMonth={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1))}
+                  extraButtons={
+                    <div className="flex gap-3">
+                      {linkToken && bankConnections.length === 0 ? (
+                        <PlaidConnectButton
+                          linkToken={linkToken}
+                          // Remove setAccessToken, now using setBankConnections
+                          onTransactionsFetched={(txs) => {
+                            setTransactions(txs);
+                            const recurring = detectRecurringTransactions(txs);
+                            const newRecurringEvents = recurring.map((r,index) => ({
+                              id:Date.now() + index,
+                              type:'expense',
+                              enabled: true,
+                              ...r
+                            }));
+                            setEvents(prev => [...prev,...newRecurringEvents]);
+                          }}
+                          userId={user?.uid || 'demo-user'}
+                          onSuccess={(token: string) => {
+                            if (user?.uid) {
+                              exchangePublicToken(token);
+                            } else {
+                              toast.error("User not loaded yet");
+                            }
+                          }}
+                        />
+                      ) : (
+                        <HeaderButton
+                          label="Disconnect"
+                          icon={PlugZap}
+                          onClick={() => setShowDisconnectModal(true)}
+                          color="bg-red-600"
+                        />
+                      )}
+                    </div>
+                  }
+                />
+                <ConnectedBanks userId={user?.uid || ''} />
 
           {quickSimDate && (
             <p className="text-white text-sm mb-4">
@@ -451,6 +484,18 @@ const handleDisconnect = async () => {
           )}
 
           <div className='animate-fade-in'>
+            {bankConnections.length > 0 && (
+              <div className="text-white text-sm mt-4 mb-6">
+                <h3 className="font-semibold mb-2">🔗 Connected Banks:</h3>
+                <ul className="list-disc list-inside space-y-1">
+                  {bankConnections.map((bank, index) => (
+                    <li key={index}>
+                      {bank.institution?.name || 'Unnamed Bank'} - Token ending in ...{bank.accessToken.slice(-4)}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             {hasRealData ? (
               <>
                 <CalendarGrid
@@ -594,8 +639,10 @@ const handleDisconnect = async () => {
           message="Are you sure you want to disconnect your bank account?"
         />
       </div>
+      </main>
     </div>
   )}
+
 </>
 
   );

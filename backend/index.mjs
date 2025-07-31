@@ -5,7 +5,9 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import createLinkTokenRouter from '../api/create_link_token.mjs';
+import saveBankInfoRouter from '../api/save_bank_info.mjs';
 import { Configuration, PlaidApi, PlaidEnvironments } from 'plaid';
+import exchangePublicTokenRouter from '../api/exchange_public_token.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({path:path.resolve(__dirname,'../.env')});
@@ -15,7 +17,7 @@ const app = express();
 const PORT = 3001;
 app.use(cors());
 app.use(express.json());
-app.use(bodyParser.json());
+
 
 // 🔧 Setup Plaid client once
 const config = new Configuration({
@@ -31,22 +33,11 @@ const plaidClient = new PlaidApi(config);
 
 // 🔁 Attach routes
 app.use('/api', createLinkTokenRouter);
+app.use('/api', exchangePublicTokenRouter);
+app.use('/api', saveBankInfoRouter);
 
 // 🔐 Exchange public token for access token
-app.post('/api/exchange-token', async (req, res) => {
-  const { public_token } = req.body;
 
-  try {
-    const response = await plaidClient.itemPublicTokenExchange({ public_token });
-    const access_token = response.data.access_token;
-
-    console.log('✅ Access Token:', access_token);
-    res.json({ access_token });
-  } catch (error) {
-    console.error('❌ Exchange failed:', error.response?.data || error.message);
-    res.status(500).json({ error: 'Failed to exchange token' });
-  }
-});
 
 app.post('/api/transactions', async (req, res) => {
   const { access_token } = req.body;

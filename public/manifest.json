@@ -1,0 +1,9 @@
+{
+  "name": "Financial Forecast",
+  "short_name": "Forecast",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#111827",
+  "theme_color": "#1f2937",
+  "description": "Visualize your finances with ease."
+}

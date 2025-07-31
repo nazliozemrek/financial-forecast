@@ -6,10 +6,8 @@
 /* Global Styles */
 
 body {
-  font-family: 'Manrope',ui-sans-serif,system-ui,sans-serif;
   @apply antialiased text-white bg-gradient-to-br from-[#1a1a1a] via-[#111827] to-[#0f172a];
-  @apply bg-gradient-to-br from-[#1a1a1a] via-[#111827] to-[#0f172a] text-white;
-  font-family: 'Manrope', sans-serif;
+  font-family: 'Manrope', sans-serif,ui-sans-serif,system-ui,sans-serif;
 }
 
 /* Custom Theme Variables */
@@ -52,20 +50,8 @@ body {
     border-color: hsl(var(--border));
   }
 }
-/* App.css or index.css */
-body {
-  margin: 0;
-  padding: 0;
-  font-family: sans-serif;
-  background-color: #0d1117; /* or your dark background */
-  color: white;
-}
+
 
 #root {
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  min-height: 100vh;
-  padding: 1rem;
-  box-sizing: border-box;
+ @apply w-full min-h-screen;
 }

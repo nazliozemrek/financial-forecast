@@ -24,9 +24,14 @@ const createLinkTokenRouter = express.Router();
 
 createLinkTokenRouter.post('/create-link-token', async (req, res) => {
   try {
-    const userId = 'demo-user';
+    const { userId }= req.body;
+    if (!userId){
+      return res.status(400).json({error:'Missing userId in request body'});
+    }
     const response = await plaidClient.linkTokenCreate({
-      user: { client_user_id: userId },
+      user: { 
+        client_user_id: userId, 
+      },
       client_name: 'Finans App',
       products: ['transactions'],
       country_codes: ['US'],
