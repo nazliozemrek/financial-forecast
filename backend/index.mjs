@@ -8,6 +8,9 @@ import createLinkTokenRouter from '../api/create_link_token.mjs';
 import saveBankInfoRouter from '../api/save_bank_info.mjs';
 import { Configuration, PlaidApi, PlaidEnvironments } from 'plaid';
 import exchangePublicTokenRouter from '../api/exchange_public_token.mjs';
+import fetchInstitutionInfo from '../api/fetch_institution_info.mjs';
+import disconnectBankRouter from '../api/disconnect_bank.mjs';
+
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({path:path.resolve(__dirname,'../.env')});
@@ -17,6 +20,8 @@ const app = express();
 const PORT = 3001;
 app.use(cors());
 app.use(express.json());
+app.use('/api',disconnectBankRouter);
+
 
 
 // 🔧 Setup Plaid client once
@@ -35,6 +40,9 @@ const plaidClient = new PlaidApi(config);
 app.use('/api', createLinkTokenRouter);
 app.use('/api', exchangePublicTokenRouter);
 app.use('/api', saveBankInfoRouter);
+app.use('/api', fetchInstitutionInfo);
+
+
 
 // 🔐 Exchange public token for access token
 

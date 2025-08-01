@@ -1,19 +1,8 @@
 import express from 'express';
-import admin from 'firebase-admin';
-import { getFirestore } from 'firebase-admin/firestore';
-import serviceAccount from '../api/serviceAccountKey.json' assert { type: "json" };
+import { adminDb } from '../backend/firebaseAdmin.mjs';
 
 const router = express.Router();
 
-// 🔐 Firebase Admin Init
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-  });
-}
-const db = getFirestore();
-
-// 🔖 Save Plaid institution data
 router.post('/save_bank_info', async (req, res) => {
   const { userId, access_token, institution } = req.body;
 
@@ -22,7 +11,7 @@ router.post('/save_bank_info', async (req, res) => {
   }
 
   try {
-    const ref = db.collection('users').doc(userId).collection('bankAccounts').doc(institution.institution_id);
+    const ref = adminDb.collection('users').doc(userId).collection('bankAccounts').doc(institution.institution_id);
     await ref.set({
       access_token,
       institution,

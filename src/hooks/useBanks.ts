@@ -1,28 +1,28 @@
 import { useEffect, useState } from 'react';
-import { getFirestore, collection, getDocs } from 'firebase/firestore';
+import { collection, onSnapshot } from 'firebase/firestore';
 import { useAuth } from './useAuth';
+import { db } from '../../firebase/config'; // adjust if your db init is elsewhere
 
 export const useBanks = () => {
-  const currentUser  = useAuth(); // ✅ Destructure currentUser
+  const currentUser = useAuth();
   const [banks, setBanks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchBanks = async () => {
-      if (!currentUser) return;
-      const db = getFirestore();
-      const bankRef = collection(db, 'users', currentUser.uid, 'bankAccounts'); // ✅ Use currentUser.uid
-      const snapshot = await getDocs(bankRef);
-      const bankList = snapshot.docs.map(doc => ({
+    if (!currentUser?.uid) return;
+
+    const bankRef = collection(db, 'users', currentUser.uid, 'bankAccounts');
+    const unsubscribe = onSnapshot(bankRef, (snapshot) => {
+      const bankList = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
       }));
       setBanks(bankList);
       setLoading(false);
-    };
+    });
 
-    fetchBanks();
-  }, [currentUser]);
+    return () => unsubscribe();
+  }, [currentUser?.uid]);
 
   return { banks, loading };
 };

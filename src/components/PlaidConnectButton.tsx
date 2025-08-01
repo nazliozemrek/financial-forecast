@@ -4,25 +4,29 @@ import { usePlaidLink } from 'react-plaid-link';
 import { useAuth } from '../hooks/useAuth'; // ✅ make sure this path is valid
 import axios from 'axios';
 
-const PlaidConnectButton = ({ linkToken }: { linkToken: string }) => {
+const PlaidConnectButton = ({
+  linkToken,
+}: {
+  linkToken: string;
+}) => {
   const auth = useAuth(); // avoids destructuring error if null
   const userId = auth?.uid;
 
-  const onSuccess = async (public_token: string, metadata: any) => {
-    console.log('🎯 onSuccess:', { public_token, metadata });
+const onSuccess = async (public_token: string, metadata: any) => {
+  console.log('🎯 onSuccess metadata:', metadata);
 
-    try {
-      await axios.post('http://localhost:3001/api/exchange_public_token', {
-        public_token,
-        userId,
-        institution: metadata.institution,
-      });
+  try {
+    const res = await axios.post('http://localhost:3001/api/exchange_public_token', {
+      public_token,
+      userId,
+      institution: metadata.institution || {}, // send what Plaid gave you
+    });
 
-      console.log('✅ Bank linked & token saved');
-    } catch (error) {
-      console.error('❌ Failed to exchange token:', error);
-    }
-  };
+    console.log('✅ Bank linked & token saved:', res.data);
+  } catch (error) {
+    console.error('❌ Failed to link bank:', error);
+  }
+};
 
   const { open, ready, error, exit } = usePlaidLink({
     token: linkToken,

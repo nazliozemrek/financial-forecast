@@ -36,7 +36,7 @@ const plaidClient = new PlaidApi(config);
 
 // Exchange and write to Firestore
 router.post('/exchange_public_token', async (req, res) => {
-  const { public_token, userId } = req.body;
+  const { public_token, userId,institution } = req.body;
 
   console.log('🔥 /exchange_public_token hit!');
   console.log('Body:', req.body);
@@ -52,8 +52,33 @@ router.post('/exchange_public_token', async (req, res) => {
     if (!userId) {
       console.warn('⚠️ No userId provided (received: undefined) — using fallback \'debugUser\', saving to Firestore');
     }
+    let fullInstitution = {
+      name: institution?.name || 'Unknown',
+      institution_id: institution?.institution_id || '',
+      logo:null,
+    };
+    if(institution?.institution_id){
+      try {
+        const instResponse = await plaidClient.institutionsGetById({
+          institution_id : institution.institution_id,
+          country_codes:['US'],
+        });
+        fullInstitution = {
+          name:instResponse.data.institution.name,
+          institution_id:instResponse.data.institution.institution_id,
+          logo: instResponse.data.institution.logo || null , 
+        };
+        // console.log('Got full institution info with logo');
+        // console.log('🎯 Logo:', instResponse.data.institution.logo);
+        // console.log('🏦 Full institution:', JSON.stringify(instResponse.data.institution, null, 2));
+        // console.log('Institution keys:', Object.keys(instResponse.data.institution));
+      } catch (instErr){
+        console.warn('Could not fetch full institutioninfo:',instErr.message);
+      }
+    }
 
-    const userRef = db.collection('users')
+    const userRef = db
+      .collection('users')
       .doc(resolvedUserId)
       .collection('bankAccounts')
       .doc(item_id);
@@ -61,13 +86,13 @@ router.post('/exchange_public_token', async (req, res) => {
     await userRef.set({
       access_token,
       item_id,
-      institution: req.body.institution,
+      institution: fullInstitution,
       connectedAt: Timestamp.now(),
     });
 
     console.log(`✅ Saved access token to /users/${resolvedUserId}/bankAccounts/${item_id}`);
 
-    res.json({ access_token });
+    res.json({ access_token, item_id, institution: fullInstitution });
   } catch (error) {
     console.error('❌ Exchange failed:', error.response?.data || error.message);
     res.status(500).json({ error: 'Failed to exchange token' });

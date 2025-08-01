@@ -22,11 +22,14 @@ import Login from './pages/Login';
 import { signOut } from 'firebase/auth';
 import { auth, db } from '../firebase/config';
 import ConnectedBanks from './components/ConnectedBanks';
+import { useBanks } from './hooks/useBanks';
+
 
 
 const FinancialForecastApp = () => {
 
   const user = useAuth();
+  const { banks, loading: banksLoading, refetch } = useBanks();
   const [loading,setLoading]=useState(true);
 
     useEffect(() => {
@@ -60,6 +63,8 @@ const FinancialForecastApp = () => {
   
   // New: hasRealData is true if there are any bank connections or simProgress
   const hasRealData = bankConnections.length > 0 || simProgress.length > 0;
+
+
   
   
 
@@ -443,17 +448,17 @@ const handleDisconnect = async () => {
                       {linkToken && bankConnections.length === 0 ? (
                         <PlaidConnectButton
                           linkToken={linkToken}
-                          // Remove setAccessToken, now using setBankConnections
+                          refetchBanks={refetch}
                           onTransactionsFetched={(txs) => {
                             setTransactions(txs);
                             const recurring = detectRecurringTransactions(txs);
-                            const newRecurringEvents = recurring.map((r,index) => ({
-                              id:Date.now() + index,
-                              type:'expense',
+                            const newRecurringEvents = recurring.map((r, index) => ({
+                              id: Date.now() + index,
+                              type: 'expense',
                               enabled: true,
-                              ...r
+                              ...r,
                             }));
-                            setEvents(prev => [...prev,...newRecurringEvents]);
+                            setEvents((prev) => [...prev, ...newRecurringEvents]);
                           }}
                           userId={user?.uid || 'demo-user'}
                           onSuccess={(token: string) => {
