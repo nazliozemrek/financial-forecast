@@ -1,4 +1,4 @@
-import type { SavedScenario } from "../types";
+import type { SavedScenario } from "../../types";
 
 type SavedScenariosProps = {
   scenarios: SavedScenario[];

@@ -1,5 +1,5 @@
 // backend/getAccounts.mjs
-import { plaidClient } from './plaidClient.mjs'; // adjust path if needed
+import { plaidClient } from './plaidClient.mjs'; 
 
 export async function getAccountsHandler(req, res) {
   const { access_token } = req.body;

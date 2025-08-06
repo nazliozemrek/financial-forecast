@@ -1,7 +1,7 @@
 // components/PlaidLinkButton.tsx
 import { useEffect, useState } from 'react';
 import { usePlaidLink } from 'react-plaid-link';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../../hooks/useAuth';
 
 export function PlaidLinkButton({ onSuccess }: { onSuccess: (publicToken: string) => void }) {
   const [linkToken, setLinkToken] = useState<string | null>(null);
@@ -16,7 +16,7 @@ export function PlaidLinkButton({ onSuccess }: { onSuccess: (publicToken: string
       }
 
       try {
-        const res = await fetch('http://localhost:3001/api/create_link_token', {
+        const res = await fetch('/api/create_link_token', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ userId: currentUser.uid }), // ✅ send real user ID

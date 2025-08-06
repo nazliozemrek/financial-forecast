@@ -7,37 +7,45 @@ import {
   LinearScale,
   CategoryScale,
   Tooltip,
-  Legend
+  Legend,
+  Filler,
+  ScatterController,
 } from 'chart.js';
-import type { BalanceEntry } from '../types';
+import type { BalanceEntry } from '../../types';
 
-ChartJS.register(LineElement, PointElement, LinearScale, CategoryScale, Tooltip, Legend);
+ChartJS.register(LineElement, PointElement, LinearScale, CategoryScale, Tooltip, Legend, Filler, ScatterController);
 
 interface BalanceChartProps {
-  data: BalanceEntry[];
+  data?: BalanceEntry[];
 }
 
-const BalanceChart: React.FC<BalanceChartProps> = ({ data }) => {
+const BalanceChart: React.FC<BalanceChartProps> = ({ data = [] }) => {
+  // Prepare labels for x-axis (dates)
   const labels = data.map(entry =>
     new Date(entry.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
   );
 
-  const balances = data.map(entry => entry.balance);
-
-  const safePoints = data.map(entry => 
-    entry.balance >= 0 ? entry.balance : null
-  );
-
-  const dangerPoints = data.map(entry =>
-    entry.balance < 0 ? entry.balance : null
-  );
+  // Prepare event markers for fetched transactions
+  // Each event will be a scatter point on the chart
+  const eventMarkers: { x: string; y: number; event: any }[] = [];
+  data.forEach((entry, idx) => {
+    if (entry.events && entry.events.length > 0) {
+      entry.events.forEach(event => {
+        eventMarkers.push({
+          x: labels[idx],
+          y: entry.balance,
+          event,
+        });
+      });
+    }
+  });
 
   const chartData = {
-    labels: data.map(entry => entry.date.toLocaleDateString()),
+    labels,
     datasets: [
       {
         label: 'Balance Safe',
-        data: safePoints,
+        data: data.map(entry => entry.balance >= 0 ? entry.balance : null),
         fill: true,
         borderColor: '#3b82f6', // Blue-400
         backgroundColor: 'rgba(59, 130, 246, 0.2)',
@@ -47,7 +55,7 @@ const BalanceChart: React.FC<BalanceChartProps> = ({ data }) => {
       },
       {
         label:"Danger Zone",
-        data: dangerPoints,
+        data: data.map(entry => entry.balance < 0 ? entry.balance : null),
         borderColor: 'rgba(220, 38, 38, 0.7)', // Red-600
         backgroundColor: 'rgba(220, 38, 38, 0.2)',
         pointBackgroundColor: 'rgba(220, 38, 38, 0.7)',
@@ -57,7 +65,19 @@ const BalanceChart: React.FC<BalanceChartProps> = ({ data }) => {
         borderWidth: 2,
         fill: false,
         tension: 0.3,
-
+      },
+      // Add scatter dataset for event markers
+      {
+        type: 'scatter' as const,
+        label: 'Fetched Transactions',
+        data: eventMarkers.map(marker => ({ x: marker.x, y: marker.y })),
+        backgroundColor: '#facc15', // yellow-400
+        borderColor: '#facc15',
+        pointRadius: 6,
+        pointHoverRadius: 8,
+        showLine: false,
+        // Custom tooltip for events
+        parsing: false,
       }
     ]
   };
@@ -73,16 +93,15 @@ const BalanceChart: React.FC<BalanceChartProps> = ({ data }) => {
           label:(context) => {
             const index = context.dataIndex;
             const entry = data[index];
-
             const lines =[
-            `💰 Balance: $${entry.balance.toFixed(2)}`,
-            `📉 Change: $${entry.dayAmount.toFixed(2)}`
+              `💰 Balance: $${entry.balance.toFixed(2)}`,
+              `📉 Change: $${entry.dayAmount.toFixed(2)}`
             ];
             if ( entry.events && entry.events.length > 0) {
               lines.push('Events:');
               entry.events.forEach(event => {
                 const sign =event.amount >= 0 ? '+' : '';
-                lines.push(`• ${event.title} (${event.type}): ${sign}$${event.amount.toFixed(2)}`);
+                lines.push(`• ${event.title} (${event.type}${event.recurring ? ', recurring' : ''}): ${sign}$${event.amount.toFixed(2)}`);
               });
             } else {
               lines.push('No events');
@@ -93,8 +112,21 @@ const BalanceChart: React.FC<BalanceChartProps> = ({ data }) => {
       }
     },
     scales: {
+      x: {
+        grid: {
+          display: true,
+          drawOnChartArea: true,
+          drawTicks: true,
+          color: 'rgba(255,255,255,0.15)', // subtle grid lines for calendar
+        },
+        // ...existing code...
+      },
       y: {
-        beginAtZero: false
+        beginAtZero: false,
+        grid: {
+          display: true,
+          color: 'rgba(255,255,255,0.08)',
+        }
       }
     }
   };

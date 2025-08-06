@@ -1,7 +1,7 @@
 // components/PlaidConnectButton.tsx
 import React from 'react';
 import { usePlaidLink } from 'react-plaid-link';
-import { useAuth } from '../hooks/useAuth'; // ✅ make sure this path is valid
+import { useAuth } from '../../hooks/useAuth'; // ✅ make sure this path is valid
 import axios from 'axios';
 
 const PlaidConnectButton = ({
@@ -16,7 +16,7 @@ const onSuccess = async (public_token: string, metadata: any) => {
   console.log('🎯 onSuccess metadata:', metadata);
 
   try {
-    const res = await axios.post('http://localhost:3001/api/exchange_public_token', {
+    const res = await axios.post('/api/exchange_public_token', {
       public_token,
       userId,
       institution: metadata.institution || {}, // send what Plaid gave you

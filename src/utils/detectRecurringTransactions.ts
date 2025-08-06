@@ -1,4 +1,4 @@
-import type { Transaction } from '../types'; // You’ll need to define or extend this type
+import type { Transaction } from '../types';
 
 export function detectRecurringTransactions(transactions: Transaction[]) {
   const recurringMap: Record<string, Transaction[]> = {};
@@ -6,12 +6,12 @@ export function detectRecurringTransactions(transactions: Transaction[]) {
   for (const tx of transactions) {
     if (!tx.name || !tx.amount || !tx.date) continue;
 
-    const key = `${tx.name}-${Math.abs(tx.amount)}`; // normalize by name & amount
+    const normalizedAmount = Math.round(Math.abs(tx.amount)); // Round to nearest dollar
+    const key = `${tx.name.toLowerCase().trim()}-${normalizedAmount}`;
     if (!recurringMap[key]) recurringMap[key] = [];
     recurringMap[key].push(tx);
   }
 
-  // Filter to only those with at least 3+ dates spaced ~monthly
   const recurringCandidates = Object.values(recurringMap).filter((group) => {
     if (group.length < 3) return false;
 
@@ -19,33 +19,33 @@ export function detectRecurringTransactions(transactions: Transaction[]) {
       .map((t) => new Date(t.date))
       .sort((a, b) => a.getTime() - b.getTime());
 
-    const spanDays = (dates[dates.length - 1].getTime() - dates[0].getTime()) / (1000 * 60 * 60 * 24);
-    if (spanDays < 60) return false; // at least 2 months apart
+    const spanDays = (dates.at(-1)!.getTime() - dates[0].getTime()) / (1000 * 60 * 60 * 24);
+    if (spanDays < 60) return false; // at least over 2 months
 
     const intervals = dates.slice(1).map((d, i) =>
       (d.getTime() - dates[i].getTime()) / (1000 * 60 * 60 * 24)
     );
-
     const avg = intervals.reduce((a, b) => a + b, 0) / intervals.length;
 
     const sample = group[0];
-    if (Math.abs(sample.amount) < 10) return false; // ignore very small amounts
-    
-    const IGNORE_VENDORS = ['Starbucks', 'Amazon', 'Uber Eats',"McDonald's",'KFC']; // Add more as needed
-    if (IGNORE_VENDORS.some(v => sample.name.toLowerCase().includes(v.toLowerCase())))  return false;
+    if (Math.abs(sample.amount) < 10) return false;
 
+    const IGNORE_VENDORS = ['Starbucks', 'Amazon', 'Uber Eats', "McDonald's", 'KFC'];
+    if (IGNORE_VENDORS.some(v => sample.name.toLowerCase().includes(v.toLowerCase()))) return false;
 
-    return avg > 25 && avg < 35; // ~monthly
+    return avg > 25 && avg < 35;
   });
 
   return recurringCandidates.map((group) => {
     const sample = group[0];
+    const isIncome = sample.amount > 0;
     return {
-      title: sample.name,
-      amount: -Math.abs(sample.amount),
-      frequency: 'monthly',
+       title: sample.name,
+       amount: isIncome ? Math.abs(sample.amount) : -Math.abs(sample.amount),
+       type: isIncome ? 'income' : 'expense',
+       frequency: 'monthly',
       dayOfMonth: new Date(sample.date).getDate(),
-      startDate: new Date(sample.date),
+       startDate: new Date(sample.date),
     };
   });
 }

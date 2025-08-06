@@ -1,5 +1,5 @@
 import type { FC } from 'react';
-import type { BalanceEntry } from '../types';
+import type { BalanceEntry } from '../../types';
 
 interface SimTimelineProps {
   progress: BalanceEntry[];

@@ -12,6 +12,10 @@ router.post('/save_bank_info', async (req, res) => {
 
   try {
     const ref = adminDb.collection('users').doc(userId).collection('bankAccounts').doc(institution.institution_id);
+    const doc = await ref.get();
+    if (doc.exists) {
+      return res.status(409).json({ error: 'Bank already connected' });
+    }
     await ref.set({
       access_token,
       institution,
