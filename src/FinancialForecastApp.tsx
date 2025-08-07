@@ -120,20 +120,47 @@ const FinancialForecastApp = () => {
     const twoMonthsAgo = new Date(today);
     twoMonthsAgo.setMonth(today.getMonth() - 2);
 
-    const expandedNormal = expandRecurringTransactions(transactions);
-    const expandedRecurring = recurringTransactions.map((tx, idx) => ({
+    // Convert Plaid transactions to EventItem format for display
+    const transactionEvents: EventItem[] = transactions.map((tx, idx) => {
+      const amount = Number(tx.amount);
+      const isIncome = amount > 0;
+      
+      return {
+        id: 1000000 + idx, // Use high ID range for bank events
+        title: tx.name || 'Bank Transaction',
+        amount: isIncome ? Math.abs(amount) : -Math.abs(amount),
+        date: tx.date,
+        type: isIncome ? 'income' as const : 'expense' as const,
+        frequency: 'once' as const,
+        startDate: tx.date,
+        enabled: true,
+        isPlaid: true,
+        generated: true,
+        recurring: false,
+        source: 'Bank Transaction',
+        sourceIcon: '🏦'
+      };
+    });
+
+    const expandedRecurring: EventItem[] = recurringTransactions.map((tx, idx) => ({
       id: 900000 + idx,
       date: tx.first_date || tx.last_date || today.toISOString().slice(0, 10),
       title: tx.description || tx.name || 'Recurring Transaction',
       amount: Math.abs(tx.amount || 0),
       type: tx.amount && tx.amount > 0 ? 'income' : 'expense',
+      frequency: 'once' as const,
+      startDate: tx.first_date || tx.last_date || today.toISOString().slice(0, 10),
       enabled: true,
       generated: true,
+      isPlaid: true,
+      recurring: false,
+      source: 'Recurring Transaction',
+      sourceIcon: '🔄'
     }));
 
-    const allExpanded = [...expandedNormal, ...expandedRecurring];
+    const allEvents = [...transactionEvents, ...expandedRecurring];
 
-    const filtered = allExpanded.filter(event => {
+    const filtered = allEvents.filter(event => {
       const eventDate = event.date ? parseLocalDate(event.date) : null;
       if (!eventDate || isNaN(eventDate.getTime())) return false;
       return eventDate >= twoMonthsAgo;
