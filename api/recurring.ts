@@ -1,21 +1,23 @@
 // api/recurring.ts
 
-import type { NextApiRequest, NextApiResponse } from 'next';
 import { Configuration, PlaidApi, PlaidEnvironments } from 'plaid';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const config = new Configuration({
-  basePath: PlaidEnvironments.sandbox,
+  basePath: PlaidEnvironments[process.env.PLAID_ENV || 'sandbox'],
   baseOptions: {
     headers: {
-      'PLAID-CLIENT-ID': process.env.PLAID_CLIENT_ID!,
-      'PLAID-SECRET': process.env.PLAID_SECRET!,
+      'PLAID-CLIENT-ID': process.env.PLAID_CLIENT_ID,
+      'PLAID-SECRET': process.env.PLAID_SECRET,
     },
   },
 });
 
 const plaidClient = new PlaidApi(config);
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(req, res) {
   // Enable CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
@@ -41,8 +43,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const response = await plaidClient.transactionsRecurringGet({ access_token: accessToken });
 
+    // Fix the property access - use the correct property name
+    const recurringTransactions = response.data.outflow_streams || response.data.inflow_streams || [];
+
     res.status(200).json({
-      recurring: response.data.recurring_transactions,
+      recurring: recurringTransactions,
     });
   } catch (err) {
     console.error('❌ Error fetching recurring transactions:', err);
