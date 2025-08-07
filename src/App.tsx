@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import ForecastTab from './tabs/ForecastTab';
 import AddEventTab from './tabs/AddEventTab';
 import ActiveEventsTab from './tabs/ActiveEventsTab';
+import Profile from './pages/Profile';
 import BottomTabs from './components/layout/BottomTabs';
 import Login from './pages/Login';
 import './index.css';
@@ -49,6 +50,11 @@ const App = () => (
         <Route path="/active" element={
           <ProtectedRoute>
             <ActiveEventsTab />
+          </ProtectedRoute>
+        } />
+        <Route path="/profile" element={
+          <ProtectedRoute>
+            <Profile />
           </ProtectedRoute>
         } />
       </Routes>

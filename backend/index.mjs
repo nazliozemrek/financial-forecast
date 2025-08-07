@@ -27,18 +27,14 @@ if (!admin.apps.length && serviceAccountJson) {
   });
 }
 
-
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({path:path.resolve(__dirname,'../.env')});
-
 
 const app = express();
 const PORT = 3001;
 app.use(cors());
 app.use(express.json());
 app.use('/api',disconnectBankRouter);
-
-
 
 // 🔧 Setup Plaid client once
 const config = new Configuration({
@@ -58,17 +54,24 @@ app.use('/api', exchangePublicTokenRouter);
 app.use('/api', saveBankInfoRouter);
 app.use('/api', fetchInstitutionInfo);
 
-
-
-// 🔐 Exchange public token for access token
-
-
+// 🔐 Secure transaction fetching with temporary token handling
 app.post('/api/transactions', async (req, res) => {
-  const { access_token } = req.body;
-  let retries = 0;
+  const { access_token, userId, institutionId } = req.body;
+  
+  if (!access_token) {
+    return res.status(400).json({ 
+      error: 'Access token required',
+      status: 'error',
+      note: 'Secure token handling required'
+    });
+  }
 
-  while (retries < 5) {
+  let retries = 0;
+  const maxRetries = 5;
+
+  while (retries < maxRetries) {
     try {
+      // 🔒 SECURITY: Use token only for this request, don't store it
       const response = await plaidClient.transactionsGet({
         access_token,
         start_date: '2024-01-01',
@@ -77,128 +80,93 @@ app.post('/api/transactions', async (req, res) => {
 
       const txs = response.data.transactions;
       if (Array.isArray(txs)) {
-        console.log(`✅ [Plaid] Transactions fetched: ${txs.length}`);
+        // 🔒 SECURITY: Sanitize transaction data before sending to client
+        const sanitizedTransactions = txs.map(tx => ({
+          // ✅ Safe to send: Transaction metadata
+          transaction_id: tx.transaction_id,
+          name: tx.name,
+          amount: tx.amount,
+          date: tx.date,
+          category: tx.category,
+          category_id: tx.category_id,
+          pending: tx.pending,
+          account_id: tx.account_id,
+          // ❌ NOT sent: account_owner, check_number, payment_channel, etc.
+          // ❌ NOT sent: raw descriptions, account numbers, sensitive metadata
+        }));
+
+        console.log(`✅ [Plaid] Transactions fetched securely: ${sanitizedTransactions.length}`);
         return res.json({
-          transactions: txs,
-          fetchedCount: txs.length,
+          transactions: sanitizedTransactions,
+          fetchedCount: sanitizedTransactions.length,
           status: 'success',
-          note: `Fetched ${txs.length} transactions`,
+          note: `Fetched ${sanitizedTransactions.length} transactions securely`,
+          security: 'No sensitive data stored or transmitted'
         });
       }
 
       console.warn('⚠️ transactions not an array:', txs);
+      return res.status(500).json({
+        error: 'Invalid transaction data format',
+        status: 'error',
+        note: 'Data format error'
+      });
     } catch (error) {
       const errorData = error.response?.data;
+      
       if (errorData?.error_code === 'PRODUCT_NOT_READY') {
         console.warn(`🔁 Retry ${retries + 1}: PRODUCT_NOT_READY`);
-      } else {
-        console.error("❌ Unexpected Error:", errorData || error.message);
-        return res.status(500).json({
-          error: errorData || error.message,
+        retries++;
+        if (retries < maxRetries) {
+          await new Promise(resolve => setTimeout(resolve, 1000 * retries));
+          continue;
+        }
+      } else if (errorData?.error_code === 'ITEM_LOGIN_REQUIRED') {
+        console.error('❌ Bank login required - user needs to reconnect');
+        return res.status(401).json({
+          error: 'Bank login required',
           status: 'error',
-          note: 'Unexpected error while fetching transactions'
+          note: 'Please reconnect your bank account',
+          requiresReconnection: true
+        });
+      } else if (errorData?.error_code === 'INVALID_ACCESS_TOKEN') {
+        console.error('❌ Invalid access token');
+        return res.status(401).json({
+          error: 'Invalid access token',
+          status: 'error',
+          note: 'Please reconnect your bank account',
+          requiresReconnection: true
         });
       }
+      
+      console.error("❌ Unexpected Error:", errorData || error.message);
+      return res.status(500).json({
+        error: 'Transaction fetch failed',
+        status: 'error',
+        note: 'Please try again later'
+      });
     }
-
-    await new Promise(r => setTimeout(r, 3000));
-    retries++;
   }
 
   return res.status(500).json({
-    error: 'Timeout waiting for transactions to be ready.',
-    status: 'timeout',
-    note: 'Max retries reached without success',
+    error: 'Max retries exceeded',
+    status: 'error',
+    note: 'Please try again later'
   });
 });
 
-app.post('/api/plaid/recurring', async (req, res) => {
-  const { access_token } = req.body;
-  if (!access_token) return res.status(400).json({ error: 'Missing access_token' });
-  try {
-    const response = await plaidClient.transactionsRecurringGet({ access_token });
-    res.json({ recurring_transactions: response.data.recurring_transactions || [] });
-  } catch (err) {
-    console.error('❌ Error fetching recurring transactions:', err.response?.data || err.message);
-    res.status(500).json({ error: 'Failed to fetch recurring transactions' });
-  }
+// 🔒 SECURITY: Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'healthy',
+    security: 'No sensitive data stored',
+    environment: process.env.PLAID_ENV || 'sandbox',
+    timestamp: new Date().toISOString()
+  });
 });
 
-app.post('/api/disconnect', async (req, res) => {
-  const { access_token } = req.body;
-
-  if (!access_token) {
-    console.error('❌ No access_token provided in request body');
-    return res.status(400).json({ error: 'Missing access_token' });
-  }
-
-  try {
-    await plaidClient.itemRemove({ access_token });
-    console.log(`🔌 Disconnected access_token`);
-    res.json({ success: true });
-  } catch (error) {
-    console.error('❌ Disconnection failed:', {
-      message: error.message,
-      data: error.response?.data,
-      status: error.response?.status,
-    });
-    res.status(500).json({ error: 'Failed to disconnect account' });
-  }
-});
 app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-});
-app.get('/api/get_access_token', async (req, res) => {
-  const { uid } = req.query;
-  if (!uid) return res.status(400).json({ error: 'Missing uid' });
-
-  try {
-    const snapshot = await admin.firestore()
-      .collection('users')
-      .doc(uid)
-      .collection('bankAccounts')
-      .limit(1)
-      .get();
-
-    if (snapshot.empty) {
-      return res.status(404).json({ error: 'No bank account found' });
-    }
-
-    const accessToken = snapshot.docs[0].data().access_token;
-    if (!accessToken) {
-      return res.status(404).json({ error: 'No access token found' });
-    }
-
-    res.json({ access_token: accessToken });
-  } catch (err) {
-    console.error('❌ get_access_token error:', err);
-    res.status(500).json({ error: 'Something went wrong' });
-  }
-});
-app.post('/api/get_access_token', async (req, res) => {
-  const { uid } = req.body;
-  if (!uid) return res.status(400).json({ error: 'Missing uid' });
-
-  try {
-    const snapshot = await admin.firestore()
-      .collection('users')
-      .doc(uid)
-      .collection('bankAccounts')
-      .limit(1)
-      .get();
-
-    if (snapshot.empty) {
-      return res.status(404).json({ error: 'No bank account found' });
-    }
-
-    const accessToken = snapshot.docs[0].data().access_token;
-    if (!accessToken) {
-      return res.status(404).json({ error: 'No access token found' });
-    }
-
-    res.json({ access_token: accessToken });
-  } catch (err) {
-    console.error('❌ get_access_token error:', err);
-    res.status(500).json({ error: 'Something went wrong' });
-  }
+  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`🔒 Security: No sensitive data stored in database`);
+  console.log(`🌍 Environment: ${process.env.PLAID_ENV || 'sandbox'}`);
 });

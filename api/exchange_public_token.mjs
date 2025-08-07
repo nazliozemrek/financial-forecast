@@ -34,65 +34,92 @@ const config = new Configuration({
 
 const plaidClient = new PlaidApi(config);
 
-// Exchange and write to Firestore
+// 🔒 SECURE: Exchange token and store only non-sensitive data
 router.post('/exchange_public_token', async (req, res) => {
-  const { public_token, userId,institution } = req.body;
+  const { public_token, userId, institution } = req.body;
 
   console.log('🔥 /exchange_public_token hit!');
   console.log('Body:', req.body);
 
   try {
+    // Exchange public token for access token
     const response = await plaidClient.itemPublicTokenExchange({ public_token });
     const access_token = response.data.access_token;
     const item_id = response.data.item_id;
 
-    console.log('✅ Got access token:', access_token);
+    console.log('✅ Got access token (will not be stored)');
 
     const resolvedUserId = userId || 'debugUser';
     if (!userId) {
-      console.warn('⚠️ No userId provided (received: undefined) — using fallback \'debugUser\', saving to Firestore');
+      console.warn('⚠️ No userId provided (received: undefined) — using fallback \'debugUser\'');
     }
+
+    // 🔒 SECURITY: Only store non-sensitive institution data
     let fullInstitution = {
       name: institution?.name || 'Unknown',
       institution_id: institution?.institution_id || '',
-      logo:null,
+      logo: null,
     };
-    if(institution?.institution_id){
+
+    if (institution?.institution_id) {
       try {
         const instResponse = await plaidClient.institutionsGetById({
-          institution_id : institution.institution_id,
-          country_codes:['US'],
+          institution_id: institution.institution_id,
+          country_codes: ['US'],
         });
+        
+        // ✅ Safe to store: Public institution metadata
         fullInstitution = {
-          name:instResponse.data.institution.name,
-          institution_id:instResponse.data.institution.institution_id,
-          logo: instResponse.data.institution.logo || null , 
+          name: instResponse.data.institution.name,
+          institution_id: instResponse.data.institution.institution_id,
+          logo: instResponse.data.institution.logo || null,
+          primary_color: instResponse.data.institution.primary_color,
+          url: instResponse.data.institution.url,
+          routing_numbers: instResponse.data.institution.routing_numbers,
+          oauth: instResponse.data.institution.oauth,
+          products: instResponse.data.institution.products,
+          country_codes: instResponse.data.institution.country_codes,
+          payment_channel: instResponse.data.institution.payment_channel,
         };
-        // console.log('Got full institution info with logo');
-        // console.log('🎯 Logo:', instResponse.data.institution.logo);
-        // console.log('🏦 Full institution:', JSON.stringify(instResponse.data.institution, null, 2));
-        // console.log('Institution keys:', Object.keys(instResponse.data.institution));
-      } catch (instErr){
-        console.warn('Could not fetch full institutioninfo:',instErr.message);
+        
+        console.log('✅ Got full institution info (public data only)');
+      } catch (instErr) {
+        console.warn('Could not fetch full institution info:', instErr.message);
       }
     }
 
+    // 🔒 SECURITY: Store only non-sensitive data in Firestore
     const userRef = db
       .collection('users')
       .doc(resolvedUserId)
       .collection('bankAccounts')
       .doc(item_id);
 
-    await userRef.set({
-      access_token,
+    const bankConnectionData = {
+      // ✅ Safe to store: Connection metadata
       item_id,
       institution: fullInstitution,
       connectedAt: Timestamp.now(),
+      lastSyncAt: Timestamp.now(),
+      status: 'active',
+      // ❌ NOT stored: access_token, credentials, account numbers
+      // ❌ NOT stored: raw transaction descriptions
+      // ❌ NOT stored: personal financial data
+    };
+
+    await userRef.set(bankConnectionData);
+
+    console.log(`✅ Saved bank connection securely to /users/${resolvedUserId}/bankAccounts/${item_id}`);
+    console.log('🔒 Security: No sensitive data stored in database');
+
+    // 🔒 SECURITY: Return access token only for immediate use, don't store it
+    res.json({ 
+      access_token, // For immediate transaction fetching only
+      item_id, 
+      institution: fullInstitution,
+      security: 'Access token not stored - use immediately for transactions',
+      message: 'Bank connected securely - no sensitive data stored'
     });
-
-    console.log(`✅ Saved access token to /users/${resolvedUserId}/bankAccounts/${item_id}`);
-
-    res.json({ access_token, item_id, institution: fullInstitution });
   } catch (error) {
     console.error('❌ Exchange failed:', error.response?.data || error.message);
     res.status(500).json({ error: 'Failed to exchange token' });
