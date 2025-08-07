@@ -5,24 +5,11 @@
       "src": "package.json",
       "use": "@vercel/static-build",
       "config": {
-        "distDir": "dist",
-        "installCommand": "npm install --platform=linux --arch=x64 --include=optional"
+        "distDir": "dist"
       }
-    },
-    {
-      "src": "api/**/*.mjs",
-      "use": "@vercel/node"
-    },
-    {
-      "src": "api/**/*.ts",
-      "use": "@vercel/node"
     }
   ],
   "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "/api/$1"
-    },
     {
       "src": "/manifest.json",
       "dest": "/manifest.json",
