@@ -229,7 +229,6 @@ const QuickSimModal: React.FC<QuickSimModalProps> = ({
               <div className="text-center pt-2">
                 <button
                   onClick={() => {
-                    console.log('💾 Save button clicked in QuickSimModal');
                     onSaveScenario();
                   }}
                   className="bg-gradient-to-r from-green-600 to-green-700 text-white px-6 py-2 rounded-lg font-semibold hover:from-green-700 hover:to-green-800 transition-all duration-200 shadow-lg"

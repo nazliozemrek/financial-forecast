@@ -1,75 +1,74 @@
 // components/PlaidLinkButton.tsx
-import { useEffect, useState } from 'react';
+import React from 'react';
 import { usePlaidLink } from 'react-plaid-link';
-import { useAuth } from '../../hooks/useAuth';
+import type { User } from 'firebase/auth';
+import axios from 'axios';
+import { useBanks } from '../../hooks/useBanks';
+import { toast } from 'react-hot-toast';
 
-export function PlaidLinkButton({ onSuccess }: { onSuccess: (publicToken: string) => void }) {
-  const [linkToken, setLinkToken] = useState<string | null>(null);
-  const  currentUser  = useAuth()
-;
-  useEffect(() => {
-    console.log("🧪 currentUser inside PlaidLinkButton:", currentUser);
-    const createLinkToken = async () => {
-      if (!currentUser || !currentUser.uid) {
-        console.warn("🛑 useAuth returned no user or no uid yet:", currentUser);
-        return;
-      }
+const PlaidLinkButton = ({
+  linkToken,
+  onBankConnected,
+  currentUser,
+}: {
+  linkToken: string;
+  onBankConnected?: () => void;
+  currentUser: User | null;
+}) => {
+  const userId = currentUser?.uid;
+  const { banks } = useBanks();
 
-      try {
-        const res = await fetch('/api/create_link_token', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: currentUser.uid }), // ✅ send real user ID
-        });
+  const isBankAlreadyConnected = (institutionId: string) => {
+    return banks.some(bank => bank.institution?.institution_id === institutionId);
+  };
 
-        const data = await res.json();
-        if (data.link_token) {
-          setLinkToken(data.link_token);
-        } else {
-          console.error('No link token received:', data);
-        }
-      } catch (error) {
-        console.error('Error creating link token:', error);
-      }
-    };
+  const onSuccess = async (public_token: string, metadata: any) => {
+    if (!userId) {
+      alert('User not loaded. Please log in before connecting a bank.');
+      return;
+    }
 
-    createLinkToken();
-  }, [currentUser]);
- 
-  console.log("🧠 Setting up Plaid Link with token:", linkToken, "and userId:", currentUser?.uid);
+    const institutionId = metadata.institution?.institution_id;
+    if (institutionId && isBankAlreadyConnected(institutionId)) {
+      const bankName = metadata.institution?.name || 'This bank';
+      toast.error(`${bankName} is already connected!`);
+      return;
+    }
 
-  const { open, ready } = usePlaidLink({
-    token: linkToken || '',
-    onSuccess: async (public_token) => {
-      console.log("🔁 Sending public_token and userId to backend", {
+    try {
+      const res = await axios.post('/api/exchange_public_token', {
         public_token,
-        userId: currentUser?.uid,
+        userId,
+        institution: metadata.institution || {},
       });
-      if (!currentUser?.uid) {
-        console.warn("❌ No user ID found, skipping token exchange");
-        return;
-      }
-      try {
-        const res = await fetch('http://localhost:3001/api/exchange_public_token',{
-          method:'POST',
-          headers:{ 'Content-Type':'application/json'},
-          body: JSON.stringify({
-            public_token,
-            userId: currentUser.uid,
-          }),
-        });
-        const data = await res.json();
-        console.log('Exchange response:',data);
-        if(onSuccess) onSuccess(public_token);
-      } catch (err) {
-        console.error('Exchange token error',err);
-      }
-    },
+
+      toast.success(`Successfully connected ${metadata.institution?.name || 'bank'}!`);
+      if (onBankConnected) onBankConnected();
+    } catch (error) {
+      toast.error('Failed to connect bank. Please try again.');
+    }
+  };
+
+  const { open, ready, error, exit } = usePlaidLink({
+    token: linkToken,
+    onSuccess,
   });
 
+  if (error) {
+    // Plaid Link error occurred
+  }
+
   return (
-    <button onClick={() => open()} disabled={!ready || !linkToken}>
-      Connect a bank
+    <button
+      onClick={() => {
+        if (ready && userId) open();
+      }}
+      disabled={!ready || !userId}
+      className="px-4 py-2 bg-white text-black rounded-lg hover:bg-gray-100 transition-all duration-200 shadow-md"
+    >
+      Connect Bank
     </button>
   );
-}
+};
+
+export default PlaidLinkButton;

@@ -34,10 +34,9 @@ export function useFinancialForecastApp() {
         id: parseInt(doc.id) // Convert string ID to number
       })) as EventItem[];
       
-      console.log('📋 Loaded user events from Firebase:', userEvents);
       setEvents(userEvents);
     } catch (error) {
-      console.error('❌ Error loading user events:', error);
+      // Error loading user events
     }
   };
 
@@ -47,9 +46,7 @@ export function useFinancialForecastApp() {
     
     try {
       await setDoc(doc(db, 'users', user.uid, 'events', event.id.toString()), event);
-      console.log('✅ Event saved to Firebase:', event);
     } catch (error) {
-      console.error('❌ Error saving event to Firebase:', error);
       toast.error('Failed to save event');
     }
   };
@@ -60,9 +57,7 @@ export function useFinancialForecastApp() {
     
     try {
       await deleteDoc(doc(db, 'users', user.uid, 'events', eventId.toString()));
-      console.log('✅ Event deleted from Firebase:', eventId);
     } catch (error) {
-      console.error('❌ Error deleting event from Firebase:', error);
       toast.error('Failed to delete event');
     }
   };
@@ -75,20 +70,17 @@ export function useFinancialForecastApp() {
       const scenariosSnapshot = await getDocs(collection(db, 'users', user.uid, 'savedScenarios'));
       const scenarios = scenariosSnapshot.docs.map(doc => doc.data() as SavedScenario);
       
-      console.log('📋 Loaded saved scenarios from Firebase:', scenarios);
       setSavedScenarios(scenarios);
     } catch (error) {
-      console.error('❌ Error loading saved scenarios:', error);
+      // Error loading saved scenarios
     }
   };
 
   // Load user events when user is available
   useEffect(() => {
     if (user) {
-      console.log('🔄 Loading user events for user:', user.uid);
       loadUserEvents();
     } else {
-      console.log('⚠️ No user available for loading events');
       setEvents([]); // Clear events when no user
     }
   }, [user]);
@@ -96,10 +88,7 @@ export function useFinancialForecastApp() {
   // Load saved scenarios when user is available
   useEffect(() => {
     if (user) {
-      console.log('🔄 Loading saved scenarios for user:', user.uid);
       loadSavedScenarios();
-    } else {
-      console.log('⚠️ No user available for loading scenarios');
     }
   }, [user]);
 
@@ -111,7 +100,6 @@ export function useFinancialForecastApp() {
         institution: bank.institution
       }));
       setBankConnections(connections);
-      console.log("🔄 Bank connections synced:", connections);
     } else {
       setBankConnections([]);
     }
@@ -119,16 +107,13 @@ export function useFinancialForecastApp() {
 
   // Set loading to false when user is loaded (or after timeout if no user)
   useEffect(() => {
-    console.log("🔍 User state changed:", user ? `User ID: ${user.uid}` : "No user");
     if (user !== null) {
       // User is loaded (either authenticated or not)
       setLoading(false);
-      console.log("✅ Loading set to false - user loaded");
     } else {
       // Still loading user state, wait a bit longer
       const timer = setTimeout(() => {
         setLoading(false);
-        console.log("⏰ Loading set to false - timeout reached");
       }, 3000);
       return () => clearTimeout(timer);
     }
@@ -169,7 +154,6 @@ export function useFinancialForecastApp() {
     }
 
     if (bankConnections.length === 0) {
-      console.log("⚠️ No bank connections available");
       return;
     }
 
@@ -193,7 +177,6 @@ export function useFinancialForecastApp() {
 
       setTransactions(allTransactions);
       toast.success(`Fetched ${allTransactions.length} transactions!`);
-      console.log("✅ setTransactions called with:", allTransactions);
 
       const recurring = detectRecurringTransactions(allTransactions);
 
@@ -212,7 +195,6 @@ export function useFinancialForecastApp() {
       });
 
     } catch (err) {
-      console.error("❌ Failed to fetch transactions", err);
       toast.error("Failed to fetch transactions");
     }
   };
@@ -235,12 +217,10 @@ export function useFinancialForecastApp() {
         const data = await res.json();
         if (data.link_token) {
           setLinkToken(data.link_token);
-          console.log('✅ Link Token fetched:', data.link_token);
         } else {
           throw new Error('No link_token returned');
         }
       } catch (err) {
-        console.error('❌ Failed to fetch Plaid link token', err);
         toast.error('Failed to fetch Plaid link token');
       }
     };
@@ -281,7 +261,6 @@ export function useFinancialForecastApp() {
       setEvents(prev => prev.filter(event => event.id !== eventId));
       toast.success('Event deleted successfully');
     } catch (error) {
-      console.error('❌ Error deleting event:', error);
       toast.error('Failed to delete event');
     }
   };

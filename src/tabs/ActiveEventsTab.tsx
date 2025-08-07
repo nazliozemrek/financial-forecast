@@ -77,26 +77,19 @@ const ActiveEventsTab: React.FC = () => {
   };
 
   const handleDeleteScenario = async (scenarioId: string) => {
+    if (!user) {
+      toast.error('User not authenticated');
+      return;
+    }
+
     try {
-      // Delete from Firebase
       const { doc, deleteDoc } = await import('firebase/firestore');
       const { db } = await import('../../firebase/config');
       
-      // Get user from the existing hook call at the top of the component
-      if (!user) {
-        console.error('❌ No user available for deletion');
-        toast.error('User not authenticated');
-        return;
-      }
-      
       await deleteDoc(doc(db, 'users', user.uid, 'savedScenarios', scenarioId));
-      console.log('🗑️ Deleted scenario from Firebase:', scenarioId);
-      
-      // Update local state
-      setSavedScenarios(prev => prev.filter(s => s.id !== scenarioId));
-      toast.success('Scenario deleted successfully!');
+      setSavedScenarios(prev => prev.filter(scenario => scenario.id !== scenarioId));
+      toast.success('Scenario deleted successfully');
     } catch (error) {
-      console.error('❌ Error deleting scenario:', error);
       toast.error('Failed to delete scenario');
     }
   };

@@ -94,7 +94,7 @@ const FinancialForecastApp = () => {
 
   // Monitor savedScenarios state changes
   useEffect(() => {
-    console.log('📋 savedScenarios state changed:', { count: savedScenarios.length, scenarios: savedScenarios });
+    // console.log('📋 savedScenarios state changed:', { count: savedScenarios.length, scenarios: savedScenarios });
   }, [savedScenarios]);
 
   // Remove transactions from UI after disconnect
@@ -143,7 +143,7 @@ const FinancialForecastApp = () => {
     const deduped = dedupeEvents(merged);
     setAllEvents(deduped);
 
-    console.log("🔥 Calendar and events updated after transactions and recurring");
+    // console.log("🔥 Calendar and events updated after transactions and recurring");
   }, [transactions, recurringTransactions, currentDate, events]);
 
   // Set calendarReady to true when calendarDays is populated
@@ -254,11 +254,11 @@ const FinancialForecastApp = () => {
     setSimProgress(progress);
     setQuickSimResult(progress[progress.length - 1]);
 
-    console.log('📊 Simulation completed:', { 
-      progressLength: progress.length, 
-      persistentLength: progress.length,
-      finalBalance: currentBalance 
-    });
+    // console.log('📊 Simulation completed:', { 
+    //   progressLength: progress.length, 
+    //   persistentLength: progress.length,
+    //   finalBalance: currentBalance 
+    // });
 
     if (skipAnimation) {
       setIsSimAnimating(false);
@@ -277,16 +277,16 @@ const FinancialForecastApp = () => {
 
   // Save scenario
   const handleSaveScenario = async () => {
-    console.log('💾 Save scenario clicked!', { quickSimResult, persistentSimProgress });
+    // console.log('💾 Save scenario clicked!', { quickSimResult, persistentSimProgress });
     
     if (!quickSimResult || !user) {
-      console.log('❌ No quickSimResult or user available');
+      // console.log('❌ No quickSimResult or user available');
       toast.error('No simulation result to save or user not logged in');
       return;
     }
     
     if (persistentSimProgress.length === 0) {
-      console.log('❌ No persistent simulation data available');
+      // console.log('❌ No persistent simulation data available');
       toast.error('No simulation data to save');
       return;
     }
@@ -305,7 +305,7 @@ const FinancialForecastApp = () => {
     };
     
     try {
-      console.log('📊 Saving scenario to Firebase:', scenario);
+      // console.log('📊 Saving scenario to Firebase:', scenario);
       
       // Save to Firebase
       const { doc, setDoc } = await import('firebase/firestore');
@@ -316,7 +316,7 @@ const FinancialForecastApp = () => {
       // Update local state
       setSavedScenarios(prev => {
         const newScenarios = [...prev, scenario];
-        console.log('💾 Updated savedScenarios:', { prevCount: prev.length, newCount: newScenarios.length });
+        // console.log('💾 Updated savedScenarios:', { prevCount: prev.length, newCount: newScenarios.length });
         return newScenarios;
       });
       
@@ -352,7 +352,7 @@ const FinancialForecastApp = () => {
       createdAt: new Date().toISOString(),
     };
     
-    console.log('🧪 Adding test scenario:', testScenario);
+    // console.log('🧪 Adding test scenario:', testScenario);
     setSavedScenarios(prev => [...prev, testScenario]);
     toast.success('Test scenario added!');
   };
