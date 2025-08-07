@@ -57,8 +57,11 @@ const FinancialForecastApp = () => {
   const [selectedDateDetail, setSelectedDateDetail] = useState<BalanceEntry | null>(null);
   const [showDisconnectModal, setShowDisconnectModal] = useState(false);
   const [simTargetDate, setSimTargetDate] = useState<Date | null>(null);
-  const { accessToken, recurringTransactions, fetchRecurringTransactions } = usePlaid(user);
+  const { linkToken: plaidLinkToken } = usePlaid();
   const { banks } = useBanks();
+
+  // Initialize recurringTransactions as empty array since usePlaid no longer provides it
+  const [recurringTransactions, setRecurringTransactions] = useState<any[]>([]);
 
   // Persistent simulation state - won't be cleared when switching tabs
   const [persistentSimProgress, setPersistentSimProgress] = useState<BalanceEntry[]>([]);
@@ -77,13 +80,13 @@ const FinancialForecastApp = () => {
 
 
   useEffect(() => {
-    if (accessToken && user && bankConnections.length > 0) {
+    if (linkToken && user && bankConnections.length > 0) {
       fetchTransactions();
       setTimeout(() => {
         setCurrentDate(new Date()); // force calendar re-render
       }, 500);
     }
-  }, [accessToken, user, bankConnections]);
+  }, [linkToken, user, bankConnections]);
 
   useEffect(() => {
     // Auto-refresh calendar UI after new transactions are fetched
@@ -117,7 +120,7 @@ const FinancialForecastApp = () => {
     const twoMonthsAgo = new Date(today);
     twoMonthsAgo.setMonth(today.getMonth() - 2);
 
-    const expandedNormal = expandRecurringTransactions(transactions, 4);
+    const expandedNormal = expandRecurringTransactions(transactions);
     const expandedRecurring = recurringTransactions.map((tx, idx) => ({
       id: 900000 + idx,
       date: tx.first_date || tx.last_date || today.toISOString().slice(0, 10),
