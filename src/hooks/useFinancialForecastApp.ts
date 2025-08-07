@@ -1,6 +1,6 @@
 // hooks/useFinancialForecastApp.ts
 import { useEffect, useState } from 'react';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, doc, setDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
 import { auth, db } from '../../firebase/config';
 import { useAuth } from './useAuth';
 import { useBanks } from './useBanks';
@@ -23,14 +23,55 @@ export function useFinancialForecastApp() {
   const [savedScenarios, setSavedScenarios] = useState<SavedScenario[]>([]);
   const [allEvents, setAllEvents] = useState<EventItem[]>([]);
 
+  // Load user events from Firebase
+  const loadUserEvents = async () => {
+    if (!user) return;
+    
+    try {
+      const eventsSnapshot = await getDocs(collection(db, 'users', user.uid, 'events'));
+      const userEvents = eventsSnapshot.docs.map(doc => ({
+        ...doc.data(),
+        id: parseInt(doc.id) // Convert string ID to number
+      })) as EventItem[];
+      
+      console.log('📋 Loaded user events from Firebase:', userEvents);
+      setEvents(userEvents);
+    } catch (error) {
+      console.error('❌ Error loading user events:', error);
+    }
+  };
+
+  // Save event to Firebase
+  const saveEventToFirebase = async (event: EventItem) => {
+    if (!user) return;
+    
+    try {
+      await setDoc(doc(db, 'users', user.uid, 'events', event.id.toString()), event);
+      console.log('✅ Event saved to Firebase:', event);
+    } catch (error) {
+      console.error('❌ Error saving event to Firebase:', error);
+      toast.error('Failed to save event');
+    }
+  };
+
+  // Delete event from Firebase
+  const deleteEventFromFirebase = async (eventId: number) => {
+    if (!user) return;
+    
+    try {
+      await deleteDoc(doc(db, 'users', user.uid, 'events', eventId.toString()));
+      console.log('✅ Event deleted from Firebase:', eventId);
+    } catch (error) {
+      console.error('❌ Error deleting event from Firebase:', error);
+      toast.error('Failed to delete event');
+    }
+  };
+
   // Load saved scenarios from Firebase
   const loadSavedScenarios = async () => {
     if (!user) return;
     
     try {
-      const { collection, getDocs } = await import('firebase/firestore');
-      const { db } = await import('../../firebase/config');
-      
       const scenariosSnapshot = await getDocs(collection(db, 'users', user.uid, 'savedScenarios'));
       const scenarios = scenariosSnapshot.docs.map(doc => doc.data() as SavedScenario);
       
@@ -40,6 +81,17 @@ export function useFinancialForecastApp() {
       console.error('❌ Error loading saved scenarios:', error);
     }
   };
+
+  // Load user events when user is available
+  useEffect(() => {
+    if (user) {
+      console.log('🔄 Loading user events for user:', user.uid);
+      loadUserEvents();
+    } else {
+      console.log('⚠️ No user available for loading events');
+      setEvents([]); // Clear events when no user
+    }
+  }, [user]);
 
   // Load saved scenarios when user is available
   useEffect(() => {
@@ -198,27 +250,49 @@ export function useFinancialForecastApp() {
     }
   }, [user, linkToken]);
 
-  useEffect(() => {
-    // Load user-added events from localStorage on mount
-    const saved = localStorage.getItem('userAddedEvents');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          setEvents(parsed);
-        }
-      } catch (err) {
-        console.error('Failed to parse saved events:', err);
+  // Enhanced setEvents function that saves to Firebase
+  const setEventsWithFirebase = (newEvents: EventItem[] | ((prev: EventItem[]) => EventItem[])) => {
+    setEvents(prev => {
+      const updatedEvents = typeof newEvents === 'function' ? newEvents(prev) : newEvents;
+      
+      // Save new events to Firebase
+      if (user) {
+        updatedEvents.forEach(event => {
+          if (!prev.find(e => e.id === event.id)) {
+            // This is a new event, save it
+            saveEventToFirebase(event);
+          }
+        });
       }
+      
+      return updatedEvents;
+    });
+  };
+
+  // Enhanced delete event function
+  const deleteEvent = async (eventId: number) => {
+    if (!user) {
+      toast.error('User not authenticated');
+      return;
     }
-  }, []);
+
+    try {
+      await deleteEventFromFirebase(eventId);
+      setEvents(prev => prev.filter(event => event.id !== eventId));
+      toast.success('Event deleted successfully');
+    } catch (error) {
+      console.error('❌ Error deleting event:', error);
+      toast.error('Failed to delete event');
+    }
+  };
 
   return {
     user,
     loading,
     transactions,
     events,
-    setEvents,
+    setEvents: setEventsWithFirebase,
+    deleteEvent,
     allEvents,
     setAllEvents,
     bankConnections,

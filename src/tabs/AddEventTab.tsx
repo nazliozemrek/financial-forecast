@@ -5,7 +5,7 @@ import { Plus, TrendingUp, Calendar, Target, Zap, PlusCircle, Eye, Trash2 } from
 import type { EventItem } from '../types';
 
 const AddEventTab: React.FC = () => {
-  const { events, setEvents } = useFinancialForecastApp();
+  const { events, setEvents, deleteEvent } = useFinancialForecastApp();
   const { banks } = useBanks();
   const [showEventForm, setShowEventForm] = useState(false);
   const [eventTitle, setEventTitle] = useState('');
@@ -49,8 +49,8 @@ const AddEventTab: React.FC = () => {
     ));
   };
 
-  const handleDeleteEvent = (id: number) => {
-    setEvents(prev => prev.filter(event => event.id !== id));
+  const handleDeleteEvent = async (id: number) => {
+    await deleteEvent(id);
   };
 
   return (
