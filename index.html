@@ -3,16 +3,49 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <link rel="manifest" href="/manifest.json" />
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
-
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Financial Forecast App</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="description" content="Plan your financial future with AI-powered insights and secure bank integration. Connect your bank accounts, track spending, and forecast your financial future with confidence." />
+    <meta name="keywords" content="financial, forecast, budget, planning, plaid, banking, money, expenses, income, chart, calendar, ai, insights, secure, privacy" />
+    <meta name="author" content="Financial Forecast" />
+    
+    <!-- Apple PWA Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Financial Forecast" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    
+    <!-- Android PWA Meta Tags -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="theme-color" content="#007a33" />
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+    
+    <!-- Preconnect to external services -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    
+    <title>Financial Forecast - Smart Financial Planning</title>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    
+    <!-- PWA Service Worker Registration -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then((registration) => {
+              console.log('✅ PWA Service Worker registered:', registration);
+            })
+            .catch((error) => {
+              console.log('❌ PWA Service Worker registration failed:', error);
+            });
+        });
+      }
+    </script>
   </body>
 </html>
