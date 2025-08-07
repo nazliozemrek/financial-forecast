@@ -8,6 +8,14 @@
         "distDir": "dist",
         "installCommand": "npm install --platform=linux --arch=x64 --include=optional"
       }
+    },
+    {
+      "src": "api/**/*.mjs",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "api/**/*.ts",
+      "use": "@vercel/node"
     }
   ],
   "routes": [
