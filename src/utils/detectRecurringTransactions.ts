@@ -1,4 +1,5 @@
 import type { Transaction } from '../types';
+import { parseLocalDate } from './calendarUtils';
 
 export function detectRecurringTransactions(transactions: Transaction[]) {
   const recurringMap: Record<string, Transaction[]> = {};
@@ -16,7 +17,7 @@ export function detectRecurringTransactions(transactions: Transaction[]) {
     if (group.length < 3) return false;
 
     const dates = group
-      .map((t) => new Date(t.date))
+      .map((t) => parseLocalDate(t.date))
       .sort((a, b) => a.getTime() - b.getTime());
 
     const spanDays = (dates.at(-1)!.getTime() - dates[0].getTime()) / (1000 * 60 * 60 * 24);
@@ -39,13 +40,17 @@ export function detectRecurringTransactions(transactions: Transaction[]) {
   return recurringCandidates.map((group) => {
     const sample = group[0];
     const isIncome = sample.amount > 0;
+    
+    // Fix timezone issue: create date in local timezone
+    const localDate = parseLocalDate(sample.date);
+    
     return {
        title: sample.name,
        amount: isIncome ? Math.abs(sample.amount) : -Math.abs(sample.amount),
        type: isIncome ? 'income' : 'expense',
        frequency: 'monthly',
-      dayOfMonth: new Date(sample.date).getDate(),
-       startDate: new Date(sample.date),
+      dayOfMonth: localDate.getDate(),
+       startDate: localDate,
     };
   });
 }

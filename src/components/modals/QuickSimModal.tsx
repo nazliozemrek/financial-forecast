@@ -11,6 +11,7 @@ interface QuickSimModalProps {
   setSkipAnimation: (value: boolean) => void;
   onSimulate: () => void;
   onClose: () => void;
+  onSaveScenario?: () => void;
   events: EventItem[];
   onToggleEvent: (id: number) => void;
 }
@@ -25,6 +26,7 @@ const QuickSimModal: React.FC<QuickSimModalProps> = ({
   setSkipAnimation,
   onSimulate,
   onClose,
+  onSaveScenario,
   events,
   onToggleEvent,
 }) => {
@@ -77,36 +79,88 @@ const QuickSimModal: React.FC<QuickSimModalProps> = ({
               <li
                 key={event.id}
                 onClick={() => onToggleEvent(event.id)}
-                className={`cursor-pointer px-3 py-2 rounded-xl border text-sm flex justify-between items-center ${
+                className={`cursor-pointer px-3 py-2 rounded-xl border text-sm flex justify-between items-center transition-all duration-200 ${
                   event.enabled
-                    ? 'bg-green-500/20 hover:bg-green-500/30'
-                    : 'bg-red-500/10 hover:bg-red-500/20 text-white/60'
+                    ? 'bg-green-500/20 hover:bg-green-500/30 border-green-500/30'
+                    : 'bg-red-500/10 hover:bg-red-500/20 text-white/60 border-red-500/20'
                 }`}
               >
-                <span>{event.title}</span>
-                <span>{event.enabled ? '✅' : '🚫'}</span>
+                <div className="flex items-center space-x-2">
+                  <span className="text-xs">{event.sourceIcon || '📊'}</span>
+                  <div className="flex flex-col">
+                    <span className="font-medium">{event.title}</span>
+                    <span className="text-xs text-gray-400">{event.source || 'Event'}</span>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span className={`text-sm font-bold ${event.type === 'income' ? 'text-green-400' : 'text-red-400'}`}>
+                    {event.type === 'income' ? '+' : '-'}${Math.abs(event.amount)}
+                  </span>
+                  <span>{event.enabled ? '✅' : '🚫'}</span>
+                </div>
               </li>
             ))}
           </ul>
         </div>
 
         {quickSimResult && (
-          <div className="bg-white/10 p-4 rounded-xl text-sm text-white space-y-2 border border-white/20">
-            <p><strong>Date:</strong> {new Date(quickSimResult.date).toLocaleDateString()}</p>
-            <p className={quickSimResult.balance >= 0 ? 'text-green-400' : 'text-red-400'}>
-              <strong>Projected Balance:</strong> ${quickSimResult.balance.toFixed(2)}
-            </p>
-            {quickSimResult.dayAmount !== 0 && (
-              <p className={quickSimResult.dayAmount > 0 ? 'text-green-400' : 'text-red-400'}>
-                <strong>Day Change:</strong> ${quickSimResult.dayAmount.toFixed(2)}
-              </p>
-            )}
+          <div className="bg-gradient-to-br from-blue-900/50 to-purple-900/50 p-6 rounded-xl text-white space-y-4 border border-white/20 shadow-xl">
+            <div className="text-center mb-4">
+              <h3 className="text-lg font-bold text-white mb-1">Simulation Results</h3>
+              <p className="text-sm text-gray-300">Target Date: {new Date(quickSimResult.date).toLocaleDateString()}</p>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-white/10 p-4 rounded-lg text-center">
+                <div className="text-2xl font-bold mb-1">
+                  <span className={quickSimResult.balance >= 0 ? 'text-green-400' : 'text-red-400'}>
+                    ${quickSimResult.balance.toFixed(2)}
+                  </span>
+                </div>
+                <div className="text-sm text-gray-300">Projected Balance</div>
+              </div>
+              
+              <div className="bg-white/10 p-4 rounded-lg text-center">
+                <div className="text-lg font-bold mb-1">
+                  <span className={quickSimResult.dayAmount > 0 ? 'text-green-400' : 'text-red-400'}>
+                    {quickSimResult.dayAmount > 0 ? '+' : ''}${quickSimResult.dayAmount.toFixed(2)}
+                  </span>
+                </div>
+                <div className="text-sm text-gray-300">Day Change</div>
+              </div>
+            </div>
+
             {quickSimResult.events?.length > 0 && (
-              <ul className="list-disc ml-5">
-                {quickSimResult.events.map((e, idx) => (
-                  <li key={idx}>{e.title} (${e.amount.toFixed(2)})</li>
-                ))}
-              </ul>
+              <div className="bg-white/10 p-4 rounded-lg">
+                <h4 className="font-semibold mb-2 text-sm">Events on Target Date:</h4>
+                <div className="space-y-1">
+                  {quickSimResult.events.map((e, idx) => (
+                    <div key={idx} className="flex justify-between items-center text-sm">
+                      <span className="flex items-center space-x-2">
+                        <span className="text-xs">{e.sourceIcon || '📊'}</span>
+                        <span>{e.title}</span>
+                      </span>
+                      <span className={`font-bold ${e.type === 'income' ? 'text-green-400' : 'text-red-400'}`}>
+                        {e.type === 'income' ? '+' : '-'}${Math.abs(e.amount).toFixed(2)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {onSaveScenario && (
+              <div className="text-center pt-2">
+                <button
+                  onClick={() => {
+                    console.log('💾 Save button clicked in QuickSimModal');
+                    onSaveScenario();
+                  }}
+                  className="bg-gradient-to-r from-green-600 to-green-700 text-white px-6 py-2 rounded-lg font-semibold hover:from-green-700 hover:to-green-800 transition-all duration-200 shadow-lg"
+                >
+                  💾 Save This Scenario
+                </button>
+              </div>
             )}
           </div>
         )}

@@ -17,13 +17,40 @@ ChartJS.register(LineElement, PointElement, LinearScale, CategoryScale, Tooltip,
 
 interface BalanceChartProps {
   data?: BalanceEntry[];
+  compact?: boolean; // New prop to control styling for saved scenarios
 }
 
-const BalanceChart: React.FC<BalanceChartProps> = ({ data = [] }) => {
+const BalanceChart: React.FC<BalanceChartProps> = ({ data, compact = false }) => {
+  if (!data || data.length === 0) {
+    return (
+      <div className="h-64 flex items-center justify-center bg-[#1a1a1a] border border-[#333] rounded-lg">
+        <div className="text-center text-gray-300">
+          <div className="text-4xl mb-2">📊</div>
+          <p>No data available</p>
+        </div>
+      </div>
+    );
+  }
+  
   // Prepare labels for x-axis (dates)
-  const labels = data.map(entry =>
-    new Date(entry.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
-  );
+  const labels = data.map(entry => {
+    let date;
+    if (entry.date instanceof Date) {
+      date = entry.date;
+    } else if (typeof entry.date === 'string') {
+      date = new Date(entry.date);
+    } else {
+      console.error('Invalid date format:', entry.date);
+      return 'Invalid Date';
+    }
+    
+    if (isNaN(date.getTime())) {
+      console.error('Invalid date value:', entry.date);
+      return 'Invalid Date';
+    }
+    
+    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  });
 
   // Prepare event markers for fetched transactions
   // Each event will be a scatter point on the chart
@@ -44,98 +71,106 @@ const BalanceChart: React.FC<BalanceChartProps> = ({ data = [] }) => {
     labels,
     datasets: [
       {
-        label: 'Balance Safe',
-        data: data.map(entry => entry.balance >= 0 ? entry.balance : null),
+        label: 'Balance',
+        data: data.map(entry => entry.balance),
+        borderColor: '#007a33',
+        backgroundColor: 'rgba(0, 122, 51, 0.1)',
+        borderWidth: 3,
         fill: true,
-        borderColor: '#3b82f6', // Blue-400
-        backgroundColor: 'rgba(59, 130, 246, 0.2)',
-        pointBackgroundColor: '#3b82f6',
-        tension: 0.3,
-        pointRadius: 2
+        tension: 0.4,
+        pointBackgroundColor: '#007a33',
+        pointBorderColor: '#ffffff',
+        pointBorderWidth: 2,
+        pointRadius: 4,
+        pointHoverRadius: 6,
+        pointHoverBackgroundColor: '#ffffff',
+        pointHoverBorderColor: '#007a33',
       },
-      {
-        label:"Danger Zone",
-        data: data.map(entry => entry.balance < 0 ? entry.balance : null),
-        borderColor: 'rgba(220, 38, 38, 0.7)', // Red-600
-        backgroundColor: 'rgba(220, 38, 38, 0.2)',
-        pointBackgroundColor: 'rgba(220, 38, 38, 0.7)',
-        pointBorderColor: 'rgba(220, 38, 38, 0.7)',
-        pointRadius: 5,
-        pointHoverRadius: 7,
-        borderWidth: 2,
-        fill: false,
-        tension: 0.3,
-      },
-      // Add scatter dataset for event markers
-      {
-        type: 'scatter' as const,
-        label: 'Fetched Transactions',
-        data: eventMarkers.map(marker => ({ x: marker.x, y: marker.y })),
-        backgroundColor: '#facc15', // yellow-400
-        borderColor: '#facc15',
-        pointRadius: 6,
-        pointHoverRadius: 8,
-        showLine: false,
-        // Custom tooltip for events
-        parsing: false,
-      }
-    ]
+    ],
   };
 
   const options = {
     responsive: true,
+    maintainAspectRatio: false,
     plugins: {
       legend: {
-        display : false,
+        display: false,
       },
-      tooltip:{
-        callbacks:{
-          label:(context) => {
-            const index = context.dataIndex;
-            const entry = data[index];
-            const lines =[
-              `💰 Balance: $${entry.balance.toFixed(2)}`,
-              `📉 Change: $${entry.dayAmount.toFixed(2)}`
-            ];
-            if ( entry.events && entry.events.length > 0) {
-              lines.push('Events:');
-              entry.events.forEach(event => {
-                const sign =event.amount >= 0 ? '+' : '';
-                lines.push(`• ${event.title} (${event.type}${event.recurring ? ', recurring' : ''}): ${sign}$${event.amount.toFixed(2)}`);
-              });
-            } else {
-              lines.push('No events');
-            }
-            return lines;
+      tooltip: {
+        backgroundColor: 'rgba(15, 15, 15, 0.95)',
+        titleColor: '#ffffff',
+        bodyColor: '#cccccc',
+        borderColor: '#007a33',
+        borderWidth: 1,
+        cornerRadius: 8,
+        displayColors: false,
+        callbacks: {
+          label: function(context: any) {
+            return `Balance: $${context.parsed.y.toFixed(2)}`;
           }
         }
-      }
+      },
     },
     scales: {
       x: {
         grid: {
-          display: true,
-          drawOnChartArea: true,
-          drawTicks: true,
-          color: 'rgba(255,255,255,0.15)', // subtle grid lines for calendar
+          color: 'rgba(255, 255, 255, 0.1)',
         },
-        // ...existing code...
+        ticks: {
+          color: '#ffffff',
+        }
       },
       y: {
-        beginAtZero: false,
         grid: {
-          display: true,
-          color: 'rgba(255,255,255,0.08)',
+          color: 'rgba(255, 255, 255, 0.1)',
+        },
+        ticks: {
+          color: '#ffffff',
+          callback: function(value: any) {
+            return '$' + value.toFixed(0);
+          }
         }
       }
     }
   };
 
   return (
-    <div className="mt-6 bg-white/10 border border-white/20 p-4 rounded-xl">
-      <h3 className="text-lg font-bold text-white mb-2">📈 Balance Over Time</h3>
-      <Line data={chartData} options={options} />
-    </div>
+    <>
+      {compact ? (
+        // Compact version for saved scenarios - no outer container
+        <div className="h-full w-full">
+          <Line data={chartData} options={options} />
+        </div>
+      ) : (
+        // Full version for main forecast view
+        <div className="mt-6 bg-gradient-to-br from-gray-800/50 to-gray-900/50 border border-white/20 p-6 rounded-xl shadow-xl">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xl font-bold text-white flex items-center">
+              <span className="mr-2">📈</span>
+              Balance Forecast
+            </h3>
+            {data.length > 0 && (
+              <div className="text-sm text-gray-300">
+                {data.length} days forecasted
+              </div>
+            )}
+          </div>
+          
+          {data.length === 0 ? (
+            <div className="h-64 flex items-center justify-center text-gray-400">
+              <div className="text-center">
+                <div className="text-4xl mb-2">📊</div>
+                <p>Run a simulation to see your balance forecast</p>
+              </div>
+            </div>
+          ) : (
+            <div className="h-80">
+              <Line data={chartData} options={options} />
+            </div>
+          )}
+        </div>
+      )}
+    </>
   );
 };
 

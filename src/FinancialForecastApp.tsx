@@ -7,13 +7,15 @@ import { Modal } from './components/shared/Modal';
 import type { BalanceEntry, EventItem } from './types';
 import { Toaster, toast } from 'react-hot-toast';
 import PlaidConnectButton from './components/plaid/PlaidConnectButton';
-import HeaderButton from './components/layout/HeaderButton';
+import { HeaderButton } from './components/layout/HeaderButton';
 import ConfirmModal from './components/modals/ConfirmModal';
 import SplashScreen from './components/layout/SplashScreen';
 import ConnectedBanks from './components/plaid/ConnectedBanks';
+import QuickSimModal from './components/modals/QuickSimModal';
+import SavedScenarios from './components/simulation/SavedScenarios';
 import Login from './pages/Login';
-import { PlugZap } from 'lucide-react';
-import { generateCalendarDays } from './utils/calendarUtils';
+import { PlugZap, Plus, Building2, Save, Download, Target } from 'lucide-react';
+import { generateCalendarDays, parseLocalDate } from './utils/calendarUtils';
 import { expandRecurringTransactions } from './utils/expandRecurringTransactions';
 import { dedupeEvents } from './utils/dedupeEvents';
 import { addMonths} from 'date-fns';
@@ -27,11 +29,15 @@ const FinancialForecastApp = () => {
     transactions,
     events,
     setEvents,
+    allEvents,
+    setAllEvents,
     bankConnections,
     setBankConnections,
     linkToken,
     refetchBanks,
-    fetchTransactions
+    fetchTransactions,
+    savedScenarios,
+    setSavedScenarios
   } = useFinancialForecastApp();
 
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -54,17 +60,20 @@ const FinancialForecastApp = () => {
   const { accessToken, recurringTransactions, fetchRecurringTransactions } = usePlaid(user);
   const { banks } = useBanks();
 
-  const parseLocalDate = (dateStr: string | undefined): Date | null => {
-    if (!dateStr || typeof dateStr !== 'string') return null;
-    const parts = dateStr.split("-");
-    if (parts.length !== 3) return null;
-    const [year, month, day] = parts.map(Number);
-    if (!year || !month || !day) return null;
-    return new Date(year, month - 1, day);
-  };
+  // Persistent simulation state - won't be cleared when switching tabs
+  const [persistentSimProgress, setPersistentSimProgress] = useState<BalanceEntry[]>([]);
+  const [lastSimulationDate, setLastSimulationDate] = useState<string>('');
+  const [lastInitialBalance, setLastInitialBalance] = useState<number>(1000);
 
-  const [allEvents, setAllEvents] = useState<EventItem[]>([]);
-  const [savedScenarios, setSavedScenarios] = useState<SavedScenario[]>([]);
+  const [showConnectedBanks, setShowConnectedBanks] = useState(false);
+  const [showPlaidConnect, setShowPlaidConnect] = useState(false);
+
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmModalConfig, setConfirmModalConfig] = useState<{
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  } | null>(null);
 
 
   useEffect(() => {
@@ -77,29 +86,16 @@ const FinancialForecastApp = () => {
   }, [accessToken, user, bankConnections]);
 
   useEffect(() => {
-    // Auto-refresh transactions and recurring after connect/disconnect
-    if (accessToken && user && bankConnections.length > 0) {
-      fetchTransactions();
-      fetchRecurringTransactions();
-      setTimeout(() => {
-        setCurrentDate(new Date());
-      }, 500);
-    }
-  }, [accessToken, user, bankConnections]);
-
-  useEffect(() => {
     // Auto-refresh calendar UI after new transactions are fetched
     if (transactions.length > 0) {
       setCurrentDate(new Date());
     }
   }, [transactions]);
 
+  // Monitor savedScenarios state changes
   useEffect(() => {
-    // Auto-refresh recurring transactions after connect/disconnect
-    if (accessToken) {
-      fetchRecurringTransactions();
-    }
-  }, [accessToken, bankConnections]);
+    console.log('📋 savedScenarios state changed:', { count: savedScenarios.length, scenarios: savedScenarios });
+  }, [savedScenarios]);
 
   // Remove transactions from UI after disconnect
   useEffect(() => {
@@ -110,22 +106,6 @@ const FinancialForecastApp = () => {
       setCalendarReady(false);
     }
   }, [bankConnections]);
-
-  useEffect(() => {
-    // Always fetch transactions and recurring transactions when banks change
-    if (user && bankConnections.length > 0) {
-      fetchTransactions();
-      fetchRecurringTransactions();
-      setTimeout(() => setCurrentDate(new Date()), 500);
-    }
-  }, [bankConnections, user]);
-
-  // Fetch Plaid recurring transactions after bank connection
-  useEffect(() => {
-    if (accessToken && bankConnections.length > 0) {
-      fetchRecurringTransactions();
-    }
-  }, [accessToken, bankConnections]);
 
   // Unified calendar update effect: handles transactions, recurringTransactions, events, and currentDate
   useEffect(() => {
@@ -151,7 +131,7 @@ const FinancialForecastApp = () => {
     const allExpanded = [...expandedNormal, ...expandedRecurring];
 
     const filtered = allExpanded.filter(event => {
-      const eventDate = parseLocalDate(event.date);
+      const eventDate = event.date ? parseLocalDate(event.date) : null;
       if (!eventDate || isNaN(eventDate.getTime())) return false;
       return eventDate >= twoMonthsAgo;
     });
@@ -209,81 +189,145 @@ const FinancialForecastApp = () => {
 
   const handleDeleteEvent = (id: number) => {
     setEvents((prev) => prev.filter((e) => e.id !== id));
+    setAllEvents((prev) => prev.filter((e) => e.id !== id));
   };
 
-  const handleQuickSimulate = async () => {
-    console.log("⏱️ Simulate clicked!", { quickSimDate });
+  const handleQuickSimulate = () => {
+    setShowQuickSim(true);
+  };
 
-    const targetDate = new Date(quickSimDate);
-    console.log("📆 Parsed targetDate:", targetDate);
+  // Actual simulation logic
+  const runSimulation = async () => {
+    if (!quickSimDate) {
+      toast.error('Please select a target date');
+      return;
+    }
 
+    const targetDate = parseLocalDate(quickSimDate);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
     if (targetDate < today) {
-      toast.error("Cannot simulate to a past date.");
+      toast.error('Target date must be in the future');
       return;
     }
 
+    setIsSimAnimating(true);
     setSimTargetDate(targetDate);
-    setShowQuickSim(false);
 
-    const generated = generateCalendarDays(currentDate, allEvents).filter(day =>
-      new Date(day.date) >= today
-    );
-    const daysToSimulate = generated.filter(day => new Date(day.date) <= targetDate);
+    const enabledEvents = allEvents.filter(event => event.enabled);
+    const progress: BalanceEntry[] = [];
+    let currentBalance = initialBalance;
+
+    // Generate entries from today to target date
+    const currentDate = new Date(today);
+    while (currentDate <= targetDate) {
+      const dateStr = currentDate.toISOString().split('T')[0];
+      const eventsForDay = enabledEvents.filter(event => {
+        if (event.frequency === 'once') {
+          return event.startDate === dateStr;
+        }
+        // Handle recurring events
+        return event.recurring && event.startDate === dateStr;
+      });
+
+      const dayAmount = eventsForDay.reduce((sum, event) => sum + event.amount, 0);
+      currentBalance += dayAmount;
+
+      progress.push({
+        date: new Date(currentDate),
+        balance: currentBalance,
+        dayAmount,
+        events: eventsForDay,
+        isCurrentMonth: currentDate.getMonth() === today.getMonth()
+      });
+
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    // Save to persistent state FIRST
+    setPersistentSimProgress(progress);
+    setLastSimulationDate(quickSimDate);
+    setLastInitialBalance(initialBalance);
+    
+    // Then update temporary state for animation
+    setSimProgress(progress);
+    setQuickSimResult(progress[progress.length - 1]);
+
+    console.log('📊 Simulation completed:', { 
+      progressLength: progress.length, 
+      persistentLength: progress.length,
+      finalBalance: currentBalance 
+    });
 
     if (skipAnimation) {
-      let balance = initialBalance;
-      const result: BalanceEntry[] = [];
-      for (const day of daysToSimulate) {
-        const dayEvents = day.events.filter(e => e.enabled !== false);
-        const amount = dayEvents.reduce((sum, e) => sum + (e.type === 'income' ? e.amount : -e.amount), 0);
-        balance += amount;
-        result.push({ ...day, balance, dayAmount: amount });
+      setIsSimAnimating(false);
+      setSimAnimatingDate(null);
+    } else {
+      // Animate through the progress
+      for (let i = 0; i < progress.length; i++) {
+        setSimAnimatingDate(progress[i].date);
+        setSimProgress(progress.slice(0, i + 1));
+        await new Promise(resolve => setTimeout(resolve, 100));
       }
-      setSimProgress(result);
-      setQuickSimResult(result[result.length - 1]);
-      setSelectedDate(targetDate);
-      return;
+      setIsSimAnimating(false);
+      setSimAnimatingDate(null);
     }
-
-    setSimAnimatingDate(null);
-    setIsSimAnimating(true);
-    let balance = initialBalance;
-    const result: BalanceEntry[] = [];
-
-    for (let i = 0; i < daysToSimulate.length; i++) {
-      const day = daysToSimulate[i];
-      const dayEvents = day.events.filter(e => e.enabled !== false);
-      const amount = dayEvents.reduce((sum, e) => sum + (e.type === 'income' ? e.amount : -e.amount), 0);
-      balance += amount;
-      const updatedDay = { ...day, balance, dayAmount: amount };
-      result.push(updatedDay);
-      setSimAnimatingDate(day.date);
-      await new Promise(resolve => setTimeout(resolve, 100));
-    }
-
-    setSimProgress(result);
-    setQuickSimResult(result[result.length - 1]);
-    setSelectedDate(targetDate);
-    setIsSimAnimating(false);
-    setSimAnimatingDate(null);
   };
 
   // Save scenario
-  const handleSaveScenario = () => {
-    if (!quickSimResult) return;
-    const scenario: SavedScenario = {
+  const handleSaveScenario = async () => {
+    console.log('💾 Save scenario clicked!', { quickSimResult, persistentSimProgress });
+    
+    if (!quickSimResult || !user) {
+      console.log('❌ No quickSimResult or user available');
+      toast.error('No simulation result to save or user not logged in');
+      return;
+    }
+    
+    if (persistentSimProgress.length === 0) {
+      console.log('❌ No persistent simulation data available');
+      toast.error('No simulation data to save');
+      return;
+    }
+    
+    const scenario = {
       id: Date.now().toString(),
       name: `Scenario ${savedScenarios.length + 1}`,
       date: quickSimResult.date.toISOString(),
       balance: quickSimResult.balance,
       dayAmount: quickSimResult.dayAmount,
       events: quickSimResult.events,
+      chartData: persistentSimProgress,
+      initialBalance: initialBalance,
+      targetDate: quickSimDate,
+      createdAt: new Date().toISOString(),
     };
-    setSavedScenarios(prev => [...prev, scenario]);
-    toast.success('Scenario saved!');
+    
+    try {
+      console.log('📊 Saving scenario to Firebase:', scenario);
+      
+      // Save to Firebase
+      const { doc, setDoc } = await import('firebase/firestore');
+      const { db } = await import('../firebase/config');
+      
+      await setDoc(doc(db, 'users', user.uid, 'savedScenarios', scenario.id), scenario);
+      
+      // Update local state
+      setSavedScenarios(prev => {
+        const newScenarios = [...prev, scenario];
+        console.log('💾 Updated savedScenarios:', { prevCount: prev.length, newCount: newScenarios.length });
+        return newScenarios;
+      });
+      
+      toast.success('Scenario saved with chart data!');
+      
+      // Close the modal after saving
+      setShowQuickSim(false);
+    } catch (error) {
+      console.error('❌ Error saving scenario:', error);
+      toast.error('Failed to save scenario. Please try again.');
+    }
   };
 
   // Discard scenario
@@ -291,6 +335,26 @@ const FinancialForecastApp = () => {
     setQuickSimResult(null);
     setSimProgress([]);
     setSimTargetDate(null);
+  };
+
+  // Test function to add a scenario manually (for debugging)
+  const addTestScenario = () => {
+    const testScenario = {
+      id: Date.now().toString(),
+      name: 'Test Scenario',
+      date: new Date().toISOString(),
+      balance: 1000,
+      dayAmount: 100,
+      events: [],
+      chartData: [],
+      initialBalance: 900,
+      targetDate: new Date().toISOString().split('T')[0],
+      createdAt: new Date().toISOString(),
+    };
+    
+    console.log('🧪 Adding test scenario:', testScenario);
+    setSavedScenarios(prev => [...prev, testScenario]);
+    toast.success('Test scenario added!');
   };
 
   if (loading) return <SplashScreen />;
@@ -301,63 +365,66 @@ const FinancialForecastApp = () => {
     banks.some(bank => bank.institution?.institution_id === institutionId);
 
   return (
-    <div className="min-h-screen w-full flex flex-col items-center bg-gradient-to-br from-[#1a1a1a] via-[#111827] to-[#0f172a]">
+    <div className="min-h-screen w-full flex flex-col items-center bg-[#0a0a0a]">
+      {/* Header */}
+      <Header
+        currentDate={currentDate}
+        onPrevMonth={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1))}
+        onNextMonth={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1))}
+        onQuickSim={handleQuickSimulate}
+        extraButtons={
+          <div className="flex items-center space-x-1 md:space-x-2">
+            {linkToken ? (
+              <PlaidConnectButton
+                linkToken={linkToken}
+                user={user}
+                onBankConnected={() => {
+                  toast.success("Bank connected! Fetching transactions...");
+                }}
+              />
+            ) : (
+              <HeaderButton
+                label="Connect Bank"
+                icon={Plus}
+                color="bg-white text-black hover:bg-gray-100"
+                onClick={() => setShowPlaidConnect(true)}
+              />
+            )}
+            {bankConnections.length > 0 && (
+              <HeaderButton
+                label={`Banks (${bankConnections.length})`}
+                icon={Building2}
+                color={showConnectedBanks ? "bg-[#007a33] text-white" : "bg-[#1a1a1a] hover:bg-[#2a2a2a] text-white border border-[#333]"}
+                onClick={() => setShowConnectedBanks(!showConnectedBanks)}
+              />
+            )}
+            <HeaderButton
+              label="Quick Simulate"
+              icon={Target}
+              color="bg-[#007a33] hover:bg-[#008a43] text-white"
+              onClick={handleQuickSimulate}
+            />
+          </div>
+        }
+      />
+
       <main className="w-full max-w-6xl px-4">
         <Toaster position="top-center" />
-        <Header
-          onAddEvent={() => setShowEventModal(true)}
-          onQuickSim={() => setShowQuickSim(true)}
-          currentDate={currentDate}
-          onPrevMonth={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1))}
-          onNextMonth={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1))}
-          extraButtons={
-            <div className="flex gap-3">
-              {bankConnections.length === 0 ? (
-                linkToken ? (
-                  <PlaidConnectButton
-                    linkToken={linkToken}
-                    refetchBanks={refetchBanks}
-                    onTransactionsFetched={() => {
-                      fetchTransactions();
-                      setTimeout(() => setCurrentDate(new Date()), 500);
-                    }}
-                    userId={user?.uid || 'demo-user'}
-                    onSuccess={(metadata) => {
-                      // Prevent duplicate bank connection
-                      if (isBankConnected(metadata.institution.institution_id)) {
-                        toast.error("Bank already connected!");
-                        return;
-                      }
-                      toast.success("Bank connected!");
-                      fetchTransactions();
-                      setTimeout(() => {
-                        setCurrentDate(new Date());
-                      }, 500);
-                    }}
-                  />
-                ) : (
-                  <HeaderButton
-                    label="Loading bank link..."
-                    icon={PlugZap}
-                    color="bg-gray-600"
-                    disabled
-                  />
-                )
-              ) : (
-                <HeaderButton
-                  label="Disconnect"
-                  icon={PlugZap}
-                  onClick={() => setShowDisconnectModal(true)}
-                  color="bg-red-600"
-                />
-              )}
-            </div>
-          }
-        />
-        <ConnectedBanks userId={user?.uid || ''} refetchBanks={refetchBanks} />
+        
+        {/* Connected Banks Section - Only show when toggled */}
+        {showConnectedBanks && bankConnections.length > 0 && (
+          <div className="mb-6">
+            <ConnectedBanks 
+              bankConnections={bankConnections}
+              onDisconnect={handleDisconnect}
+            />
+          </div>
+        )}
+
+        {/* Calendar Grid */}
         {calendarReady && (
           <CalendarGrid
-            events={allEvents} // <-- use allEvents here!
+            events={allEvents}
             calendarDays={calendarDays}
             selectedDate={selectedDate}
             setSelectedDate={setSelectedDate}
@@ -369,35 +436,48 @@ const FinancialForecastApp = () => {
             simTargetDate={simTargetDate}
           />
         )}
-        {/* Simulation Graph */}
-        <BalanceChart key={simProgress.length} data={simProgress} />
-        
-        <ConfirmModal
-          isOpen={showDisconnectModal}
-          onConfirm={handleDisconnect}
-          onCancel={() => setShowDisconnectModal(false)}
-          message="Are you sure you want to disconnect your bank account?"
-        />
-        <Modal isOpen={showDayModal} onClose={() => setShowDayModal(false)}>
-          <div className="p-4 text-white">
-            <h3 className="text-lg font-bold mb-2">Details for {selectedDateDetail?.date.toLocaleDateString()}</h3>
-            <p className="text-sm">Balance: ${selectedDateDetail?.balance}</p>
-            {selectedDateDetail?.events?.length ? (
-              <ul className="mt-2 space-y-1">
-                {selectedDateDetail.events.map((event, index) => (
-                  <li key={index} className="text-sm text-white/80 flex justify-between">
-                    <span>{event.title}</span>
-                    <span className={event.amount >= 0 ? 'text-green-400' : 'text-red-400'}>
-                      {event.amount >= 0 ? '+' : '-'}${Math.abs(event.amount)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-sm text-white/60">No events on this day.</p>
-            )}
+
+        {/* Balance Chart - Only show when there's simulation data */}
+        {persistentSimProgress && persistentSimProgress.length > 0 && (
+          <div className="mt-6">
+            <BalanceChart data={persistentSimProgress} />
           </div>
-        </Modal>
+        )}
+
+        {/* Quick Sim Modal */}
+        {showQuickSim && (
+          <QuickSimModal
+            quickSimDate={quickSimDate}
+            setQuickSimDate={setQuickSimDate}
+            initialBalance={initialBalance}
+            setInitialBalance={setInitialBalance}
+            quickSimResult={quickSimResult}
+            skipAnimation={skipAnimation}
+            setSkipAnimation={setSkipAnimation}
+            onSimulate={runSimulation}
+            onClose={() => setShowQuickSim(false)}
+            events={allEvents}
+            onToggleEvent={handleToggleEvent}
+            onSaveScenario={handleSaveScenario}
+          />
+        )}
+
+        {/* Plaid Connect Modal */}
+        {showPlaidConnect && linkToken && (
+          <Modal isOpen={showPlaidConnect} onClose={() => setShowPlaidConnect(false)}>
+            <div className="p-6">
+              <h3 className="text-lg font-semibold text-white mb-4">Connect Bank Account</h3>
+              <PlaidConnectButton
+                linkToken={linkToken}
+                user={user}
+                onBankConnected={() => {
+                  toast.success("Bank connected! Fetching transactions...");
+                  setShowPlaidConnect(false);
+                }}
+              />
+            </div>
+          </Modal>
+        )}
       </main>
     </div>
   );

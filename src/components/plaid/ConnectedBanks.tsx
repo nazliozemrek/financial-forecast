@@ -13,7 +13,7 @@ const ConnectedBanks: React.FC<ConnectedBanksProps> = ({ refetchBanks }) => {
   const { banks, loading } = useBanks();
   const currentUser = useAuth();
 
-  const [recurringEvents, setRecurringEvents] = useState([]);
+  const [recurringEvents, setRecurringEvents] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchRecurring = async () => {
@@ -27,7 +27,14 @@ const ConnectedBanks: React.FC<ConnectedBanksProps> = ({ refetchBanks }) => {
           body: JSON.stringify({ uid }),
         });
 
-        const data = await res.json();
+        const text = await res.text();
+        let data;
+        try {
+          data = JSON.parse(text);
+        } catch (err) {
+          console.error('❌ Invalid JSON response:', text);
+          return;
+        }
         if (data.accessToken) {
           const events = await fetchRecurringTransactions(data.accessToken);
           setRecurringEvents(events);
@@ -64,47 +71,62 @@ const ConnectedBanks: React.FC<ConnectedBanksProps> = ({ refetchBanks }) => {
   };
 
   return (
-    <div className="mt-4">
-      {recurringEvents.length > 0 && (
-        <div className="mb-4">
-          <h2 className="text-lg font-bold mb-2">Recurring Transactions</h2>
-          <ul className="space-y-1">
-            {recurringEvents.map((txn: any) => (
-              <li key={txn.transaction_id} className="text-sm text-white bg-blue-900 p-2 rounded">
-                {txn.description} — ${txn.amount} — Every {txn.frequency}
-              </li>
-            ))}
-          </ul>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold text-white flex items-center">
+          <span className="mr-2">🏦</span>
+          Connected Banks ({uniqueInstitutions.length})
+        </h3>
+      </div>
+
+      {uniqueInstitutions.length === 0 ? (
+        <div className="text-center py-8 text-gray-300 bg-[#1a1a1a] border border-[#333] rounded-xl">
+          <div className="text-4xl mb-2">🏦</div>
+          <p>No banks connected yet</p>
+          <p className="text-sm opacity-75">Connect your first bank to start forecasting</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {uniqueInstitutions.map((bank) => (
+            <div
+              key={bank.id}
+              className="bg-[#1a1a1a] border border-[#333] rounded-xl p-4 shadow-lg hover:shadow-xl transition-all duration-200"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="w-12 h-12 bg-[#007a33] rounded-lg flex items-center justify-center shadow-md">
+                    {bank.institution?.logo ? (
+                      <img
+                        src={`data:image/png;base64,${bank.institution.logo}`}
+                        alt={bank.institution.name || 'Bank logo'}
+                        className="w-8 h-8 rounded"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                          target.nextElementSibling?.classList.remove('hidden');
+                        }}
+                      />
+                    ) : null}
+                    <span className="text-white font-bold text-lg hidden">
+                      {bank.institution?.name?.charAt(0) || 'B'}
+                    </span>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-white">{bank.institution?.name || 'Unknown Bank'}</h4>
+                    <p className="text-sm text-gray-300">Connected</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => handleDisconnect(bank.id)}
+                  className="px-3 py-1 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all duration-200 shadow-md"
+                >
+                  Disconnect
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       )}
-      <h2 className="text-lg font-bold mb-2">Connected Banks</h2>
-      <ul className="space-y-2">
-        {uniqueInstitutions.map((bank) => (
-          <li
-            key={bank.id}
-            className="p-3 border border-gray-300 rounded bg-white text-black flex items-center justify-between"
-          >
-            <div className="flex items-center space-x-4">
-              {bank.institution?.logo ? (
-                <img
-                  src={`data:image/png;base64,${bank.institution.logo}`}
-                  alt={bank.institution.name || 'Bank logo'}
-                  className="w-8 h-8 object-contain"
-                />
-              ) : (
-                <div className="w-8 h-8 bg-gray-200 flex items-center justify-center text-xs">🏦</div>
-              )}
-              <span>{bank.institution?.name || 'Unknown Institution'}</span>
-            </div>
-            <button
-              onClick={() => handleDisconnect(bank.id)}
-              className="ml-4 px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700"
-            >
-              Disconnect
-            </button>
-          </li>
-        ))}
-      </ul>
     </div>
   );
 };

@@ -34,7 +34,7 @@ export function usePlaid(user: User | null) {
       });
       const data = await res.json();
       console.log('Plaid recurring transactions response:', data);
-      setRecurringTransactions(data.recurring_transactions || []);
+      setRecurringTransactions(data.recurring || []);
     } catch (err) {
       console.error('❌ Failed to fetch recurring transactions:', err);
       setRecurringTransactions([]);

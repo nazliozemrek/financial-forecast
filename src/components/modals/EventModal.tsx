@@ -11,22 +11,30 @@ const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave }) => {
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
   const [type, setType] = useState<'Income' | 'Expense'>('Expense');
-  const [frequency, setFrequency] = useState<'Monthly' | 'Weekly'>('Monthly');
+  const [frequency, setFrequency] = useState<'Monthly' | 'Weekly' | 'One-Time'>('Monthly');
   const [dayOfMonth, setDayOfMonth] = useState('1');
+  const [eventDate, setEventDate] = useState('');
 
   if (!isOpen) return null;
 
   const handleSubmit = () => {
     if (!title || !amount) return;
+    let localDate = eventDate;
+    if (frequency === 'One-Time' && eventDate) {
+      // Fix timezone issue: create date in local timezone
+      const [year, month, day] = eventDate.split('-').map(Number);
+      localDate = `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    }
     onSave({
       id: Date.now(),
       title,
       amount: Number(amount),
       type: type.toLowerCase() as 'income' | 'expense',
-      frequency: frequency.toLowerCase() as 'monthly' | 'weekly',
-      dayOfMonth: Number(dayOfMonth),
+      frequency: frequency === 'One-Time' ? 'once' : frequency.toLowerCase() as 'monthly' | 'weekly',
+      dayOfMonth: frequency !== 'One-Time' ? Number(dayOfMonth) : undefined,
+      date: frequency === 'One-Time' ? localDate : '',
       enabled: true,
-      startDate: new Date().toISOString(),
+      startDate: frequency === 'One-Time' ? localDate : '',
     });
     onClose();
   };
@@ -39,30 +47,26 @@ const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave }) => {
         <input
           type="text"
           placeholder="Title"
+          title="Event Title"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           className="w-full p-3 rounded-lg bg-white/10 border border-white/20 text-white"
-          title="Event Title"
-          aria-label="Event Title"
         />
 
         <input
           type="number"
           placeholder="Amount"
+          title="Event Amount"
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
           className="w-full p-3 rounded-lg bg-white/10 border border-white/20 text-white"
-          step="0.01"
-          title="Amount"
-          aria-label="Amount"
         />
 
         <select
           value={type}
           onChange={(e) => setType(e.target.value as 'Income' | 'Expense')}
-          className="w-full p-3 rounded-lg bg-white/10 border border-white/20 text-white"
           title="Event Type"
-          aria-label="Event Type"
+          className="w-full p-3 rounded-lg bg-white/10 border border-white/20 text-white"
         >
           <option value="Income">Income</option>
           <option value="Expense">Expense</option>
@@ -70,43 +74,48 @@ const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave }) => {
 
         <select
           value={frequency}
-          onChange={(e) => setFrequency(e.target.value as 'Monthly' | 'Weekly')}
-          className="w-full p-3 rounded-lg bg-white/10 border border-white/20 text-white"
+          onChange={(e) => setFrequency(e.target.value as 'Monthly' | 'Weekly' | 'One-Time')}
           title="Event Frequency"
-          aria-label="Event Frequency"
+          className="w-full p-3 rounded-lg bg-white/10 border border-white/20 text-white"
         >
           <option value="Monthly">Monthly</option>
           <option value="Weekly">Weekly</option>
+          <option value="One-Time">One-Time</option>
         </select>
 
-        <select
-          value={dayOfMonth}
-          onChange={(e) => setDayOfMonth(e.target.value)}
-          className="w-full p-3 rounded-lg bg-white/10 border border-white/20 text-white"
-          title="Day of the Month"
-          aria-label="Day of the Month"
-        >
-          {Array.from({ length: 31 }, (_, i) => (
-            <option key={i + 1} value={String(i + 1)}>
-              {i + 1}
-            </option>
-          ))}
-        </select>
+        {frequency === 'One-Time' && (
+          <input
+            type="date"
+            value={eventDate}
+            onChange={(e) => setEventDate(e.target.value)}
+            className="w-full p-3 rounded-lg bg-white/10 border border-white/20 text-white"
+          />
+        )}
+
+        {frequency !== 'One-Time' && (
+          <select
+            value={dayOfMonth}
+            onChange={(e) => setDayOfMonth(e.target.value)}
+            className="w-full p-3 rounded-lg bg-white/10 border border-white/20 text-white"
+          >
+            {Array.from({ length: 31 }, (_, i) => (
+              <option key={i + 1} value={String(i + 1)}>
+                {i + 1}
+              </option>
+            ))}
+          </select>
+        )}
 
         <div className="flex justify-between pt-4">
           <button
             onClick={handleSubmit}
-            className="flex-1 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700"
-            title="Add Event"
-            aria-label="Add Event"
+            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
           >
             Add
           </button>
           <button
             onClick={onClose}
-            className="flex-1 py-3 border border-white/20 text-white rounded-xl hover:bg-white/10"
-            title="Cancel"
-            aria-label="Cancel"
+            className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700"
           >
             Cancel
           </button>

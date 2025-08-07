@@ -16,10 +16,12 @@ export interface EventItem {
   recurring?: boolean;
   recurringInterval?: 'daily' | 'weekly' | 'monthly';
   generated?: boolean; // Indicates if this event was generated from a recurring transaction
+  source?: string; // Human-readable source description
+  sourceIcon?: string; // Icon for the source
 }
 
 export interface BalanceEntry {
-  date: Date;
+  date: Date | string; // Can be Date object or date string (for Firebase compatibility)
   balance: number;
   dayAmount: number;
   events: EventItem[];
@@ -32,12 +34,16 @@ export interface Transaction {
   date: string; // ISO date string
 }
 export interface SavedScenario {
-  id:string;
-  name:string;
-  date:string;
-  balance:number;
+  id: string;
+  name: string;
+  date: string;
+  balance: number;
   dayAmount: number;
-  events:EventItem[];
+  events: EventItem[];
+  chartData: BalanceEntry[]; // Include the full chart data for the scenario
+  initialBalance: number;
+  targetDate: string;
+  createdAt: string;
 }
 
 export interface RecurringEvent {

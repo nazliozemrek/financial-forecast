@@ -175,3 +175,30 @@ app.get('/api/get_access_token', async (req, res) => {
     res.status(500).json({ error: 'Something went wrong' });
   }
 });
+app.post('/api/get_access_token', async (req, res) => {
+  const { uid } = req.body;
+  if (!uid) return res.status(400).json({ error: 'Missing uid' });
+
+  try {
+    const snapshot = await admin.firestore()
+      .collection('users')
+      .doc(uid)
+      .collection('bankAccounts')
+      .limit(1)
+      .get();
+
+    if (snapshot.empty) {
+      return res.status(404).json({ error: 'No bank account found' });
+    }
+
+    const accessToken = snapshot.docs[0].data().access_token;
+    if (!accessToken) {
+      return res.status(404).json({ error: 'No access token found' });
+    }
+
+    res.json({ access_token: accessToken });
+  } catch (err) {
+    console.error('❌ get_access_token error:', err);
+    res.status(500).json({ error: 'Something went wrong' });
+  }
+});

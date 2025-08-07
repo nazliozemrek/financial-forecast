@@ -7,7 +7,7 @@ export function groupEventsByDay(events: EventItem[]): Record<string, GroupedEve
   const grouped: Record<string, GroupedEvent[]> = {};
 
   for (const event of events) {
-    const date = event.startDate;
+    const date = event.startDate || event.startDate;
 
     if (!grouped[date]) grouped[date] = [];
 
