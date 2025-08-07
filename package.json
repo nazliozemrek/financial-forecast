@@ -1,12 +1,19 @@
 {
-  "name": "finans-uygulamasi",
+  "name": "financial-forecast",
   "version": "1.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=20.0.0",
+    "yarn": ">=4.0.0"
+  },
   "scripts": {
     "dev": "vite",
     "server": "node backend/index.mjs",
     "build": "vite build",
-    "preview": "vite preview"
+    "build:prod": "vite build --mode production",
+    "preview": "vite preview",
+    "start": "node backend/index.mjs",
+    "postinstall": "echo '✅ Financial Forecast app installed successfully!'"
   },
   "packageManager": "yarn@4.6.0",
   "dependencies": {
@@ -44,5 +51,20 @@
     "tailwindcss": "3.4.3",
     "ts-node": "^10.9.2",
     "vite": "^7.0.5"
+  },
+  "keywords": [
+    "financial",
+    "forecast",
+    "budget",
+    "plaid",
+    "banking",
+    "react",
+    "typescript"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nazliozemrek/financial-forecast.git"
   }
 }
