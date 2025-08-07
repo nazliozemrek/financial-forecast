@@ -1,7 +1,5 @@
-import { Configuration, PlaidApi, PlaidEnvironments } from 'plaid';
-import dotenv from 'dotenv';
-
-dotenv.config();
+const { Configuration, PlaidApi, PlaidEnvironments } = require('plaid');
+require('dotenv').config();
 
 const config = new Configuration({
   basePath: PlaidEnvironments[process.env.PLAID_ENV || 'sandbox'],
@@ -15,7 +13,7 @@ const config = new Configuration({
 
 const plaidClient = new PlaidApi(config);
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   // Enable CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
@@ -53,4 +51,4 @@ export default async function handler(req, res) {
     console.error("PLAID ERROR:", err.response?.data || err.message || err);
     res.status(500).json({ error: 'Unable to create link token' });
   }
-}
+};

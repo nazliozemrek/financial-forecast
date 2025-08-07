@@ -1,7 +1,5 @@
-import { Configuration, PlaidApi, PlaidEnvironments } from 'plaid';
-import dotenv from 'dotenv';
-
-dotenv.config();
+const { Configuration, PlaidApi, PlaidEnvironments } = require('plaid');
+require('dotenv').config();
 
 const config = new Configuration({
   basePath: PlaidEnvironments[process.env.PLAID_ENV || 'sandbox'],
@@ -15,7 +13,7 @@ const config = new Configuration({
 
 const plaidClient = new PlaidApi(config);
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   // Enable CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
@@ -33,9 +31,9 @@ export default async function handler(req, res) {
   }
 
   const { access_token, userId, institutionId } = req.body;
-  
+
   if (!access_token) {
-    return res.status(400).json({ 
+    return res.status(400).json({
       error: 'Access token required',
       status: 'error',
       note: 'Secure token handling required'
@@ -89,7 +87,7 @@ export default async function handler(req, res) {
       });
     } catch (error) {
       const errorData = error.response?.data;
-      
+
       if (errorData?.error_code === 'PRODUCT_NOT_READY') {
         console.warn(`🔁 Retry ${retries + 1}: PRODUCT_NOT_READY`);
         retries++;
@@ -114,7 +112,7 @@ export default async function handler(req, res) {
           requiresReconnection: true
         });
       }
-      
+
       console.error("❌ Unexpected Error:", errorData || error.message);
       return res.status(500).json({
         error: 'Transaction fetch failed',
@@ -129,4 +127,4 @@ export default async function handler(req, res) {
     status: 'error',
     note: 'Please try again later'
   });
-}
+};
