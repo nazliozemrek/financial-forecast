@@ -1,10 +1,23 @@
-import express from 'express';
 import { adminDb } from '../backend/firebaseAdmin.mjs';
 import crypto from 'crypto';
 
-const router = express.Router();
+export default async function handler(req, res) {
+  // Enable CORS
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
-router.post('/save_bank_info', async (req, res) => {
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+
+  // Only allow POST requests
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
   const { userId, access_token, institution } = req.body;
 
   if (!userId || !access_token || !institution) {
@@ -46,7 +59,7 @@ router.post('/save_bank_info', async (req, res) => {
     await ref.set(bankInfo);
 
     console.log(`✅ Saved bank info for ${institution.name} (no sensitive data stored)`);
-    res.json({ 
+    res.status(200).json({ 
       success: true,
       message: 'Bank connected securely - no sensitive data stored',
       institution: bankInfo.institution
@@ -55,6 +68,4 @@ router.post('/save_bank_info', async (req, res) => {
     console.error('❌ Failed to save bank info:', err);
     res.status(500).json({ error: 'Failed to save bank info' });
   }
-});
-
-export default router;
+}

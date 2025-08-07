@@ -1,10 +1,23 @@
 // api/disconnect_bank.mjs
-import express from 'express';
 import { adminDb } from '../backend/firebaseAdmin.mjs';
 
-const router = express.Router();
+export default async function handler(req, res) {
+  // Enable CORS
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
-router.delete('/disconnect_bank', async (req, res) => {
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+
+  // Only allow DELETE requests
+  if (req.method !== 'DELETE') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
   const { uid, bankId } = req.body;
 
   if (!uid || !bankId) {
@@ -20,6 +33,4 @@ router.delete('/disconnect_bank', async (req, res) => {
     console.error('🔥 Error disconnecting bank:', error.message);
     res.status(500).json({ error: error.message });
   }
-});
-
-export default router;
+}
