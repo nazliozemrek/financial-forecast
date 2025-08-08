@@ -25,6 +25,7 @@ const ConnectedBanks: React.FC<ConnectedBanksProps> = ({ refetchBanks }) => {
     // Completely disable API call for now - just update UI
     // The backend is working (we can see the Firebase deletion logs)
     // but the frontend is crashing, so let's just make the UI work
+    // Force new deployment with this comment
     refetchBanks();
     console.log('✅ Bank removed from UI (API call disabled)');
   };
