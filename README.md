@@ -213,6 +213,6 @@ If you have any questions or need help, please open an issue on GitHub or contac
 
 ---
 
-**Made with ❤️ by [Your Name]**
+**Made with ❤️ by Kaan Nazlioz**
 
 *Built for modern financial planning and forecasting*
