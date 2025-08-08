@@ -1,4 +1,4 @@
-export default function handler(req, res) {
+const handler = (req, res) => {
   console.log('Test API called with method:', req.method);
   
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -15,4 +15,6 @@ export default function handler(req, res) {
     method: req.method,
     timestamp: new Date().toISOString()
   });
-}
+};
+
+module.exports = handler;
