@@ -24,7 +24,7 @@ const ConnectedBanks: React.FC<ConnectedBanksProps> = ({ refetchBanks }) => {
     
     try {
       // Call the disconnect API
-      const response = await fetch('/api/disconnect-bank', {
+      const response = await fetch('/api/remove-bank', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
