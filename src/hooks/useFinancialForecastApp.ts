@@ -219,7 +219,7 @@ export function useFinancialForecastApp() {
   useEffect(() => {
     const fetchLinkToken = async () => {
       try {
-        const res = await fetch('/api/create-link-token', {
+        const res = await fetch('/.netlify/functions/create-link-token', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ userId: user?.uid || 'demo-user' }),
