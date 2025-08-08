@@ -2,8 +2,6 @@
 import React from 'react';
 import { useBanks } from '../../hooks/useBanks';
 import { useAuth } from '../../hooks/useAuth';
-import { fetchRecurringTransactions } from '../../utils/fetchRecurring';
-import { useEffect, useState } from 'react';
 
 interface ConnectedBanksProps {
   refetchBanks: () => void;
@@ -13,61 +11,22 @@ const ConnectedBanks: React.FC<ConnectedBanksProps> = ({ refetchBanks }) => {
   const { banks, loading } = useBanks();
   const currentUser = useAuth();
 
-  const [recurringEvents, setRecurringEvents] = useState<any[]>([]);
-
-  useEffect(() => {
-    const fetchRecurring = async () => {
-      const uid = currentUser?.uid;
-      if (!uid) return;
-
-      try {
-        const res = await fetch('/api/get_access_token', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ uid }),
-        });
-
-        const text = await res.text();
-        let data;
-        try {
-          data = JSON.parse(text);
-        } catch (err) {
-          console.error('❌ Invalid JSON response:', text);
-          return;
-        }
-        if (data.accessToken) {
-          const events = await fetchRecurringTransactions(data.accessToken);
-          setRecurringEvents(events);
-        }
-      } catch (err) {
-        console.error('Error fetching recurring transactions:', err);
-      }
-    };
-
-    fetchRecurring();
-  }, [currentUser]);
-
   if (loading) return <p className="text-gray-400">Loading bank accounts...</p>;
   if (!banks.length) return <p>No connected banks yet.</p>;
 
-  // Avoid showing duplicates by filtering unique institutions
   const uniqueInstitutions = Array.from(new Map(banks.map(bank => [bank.institution?.institution_id, bank])).values());
 
   const handleDisconnect = async (bankId: string) => {
-    try {
-      const uid = currentUser?.uid;
-      if (!uid) return;
+    const uid = currentUser?.uid;
+    if (!uid) return;
 
-      await fetch('/api/disconnect_bank', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ uid, bankId }),
-      });
+    await fetch('/api/disconnect-bank', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ uid, bankId }),
+    });
 
-      refetchBanks();
-    } catch (err) {
-      console.error('Failed to disconnect bank:', err);
-    }
+    refetchBanks();
   };
 
   return (

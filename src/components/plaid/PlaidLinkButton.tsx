@@ -36,7 +36,7 @@ const PlaidLinkButton = ({
     }
 
     try {
-      const res = await axios.post('/api/exchange_public_token', {
+      const res = await axios.post('/api/exchange-public-token', {
         public_token,
         userId,
         institution: metadata.institution || {},
