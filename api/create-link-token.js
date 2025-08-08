@@ -1,27 +1,41 @@
 import { plaidClient } from '../lib/plaidClient.js';
 
-export default async function handler(req, res) {
+export const handler = async (event, context) => {
   // Enable CORS
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  };
 
   // Handle preflight requests
-  if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
+  if (event.httpMethod === 'OPTIONS') {
+    return {
+      statusCode: 200,
+      headers,
+      body: '',
+    };
   }
 
   // Only allow POST requests
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+  if (event.httpMethod !== 'POST') {
+    return {
+      statusCode: 405,
+      headers,
+      body: JSON.stringify({ error: 'Method not allowed' }),
+    };
   }
 
   try {
-    const { userId } = req.body;
+    const body = JSON.parse(event.body);
+    const { userId } = body;
     
     if (!userId) {
-      return res.status(400).json({ error: 'Missing userId in request body' });
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ error: 'Missing userId in request body' }),
+      };
     }
 
     console.log('🔄 Creating link token for user:', userId.substring(0, 10) + '...');
@@ -34,7 +48,6 @@ export default async function handler(req, res) {
       products: ['transactions'],
       country_codes: ['US'],
       language: 'en',
-      // Sandbox-specific configurations
       account_filters: {
         depository: {
           account_subtypes: ['checking', 'savings'],
@@ -43,9 +56,19 @@ export default async function handler(req, res) {
     });
 
     console.log('✅ Link token created successfully');
-    res.status(200).json({ link_token: response.data.link_token });
+    
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({ link_token: response.data.link_token }),
+    };
   } catch (err) {
     console.error("❌ PLAID ERROR:", err.response?.data || err.message || err);
-    res.status(500).json({ error: 'Unable to create link token' });
+    
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({ error: 'Unable to create link token' }),
+    };
   }
-}
+};
