@@ -4,10 +4,11 @@ import { useBanks } from '../../hooks/useBanks';
 import { useAuth } from '../../hooks/useAuth';
 
 interface ConnectedBanksProps {
-  refetchBanks: () => void;
+  bankConnections: any[];
+  onDisconnect: () => void;
 }
 
-const ConnectedBanks: React.FC<ConnectedBanksProps> = ({ refetchBanks }) => {
+const ConnectedBanks: React.FC<ConnectedBanksProps> = ({ bankConnections, onDisconnect }) => {
   const { banks, loading } = useBanks();
   const currentUser = useAuth();
 
@@ -27,8 +28,8 @@ const ConnectedBanks: React.FC<ConnectedBanksProps> = ({ refetchBanks }) => {
       // TODO: Fix Vercel API deployment and restore API call
       console.log('✅ Bank removed from UI (frontend-only for now)');
       
-      // Update the UI by refetching banks
-      refetchBanks();
+      // Call the parent's onDisconnect function
+      onDisconnect();
       
       // Show success message
       alert('Bank disconnected successfully! (Note: API call temporarily disabled due to deployment issue)');
