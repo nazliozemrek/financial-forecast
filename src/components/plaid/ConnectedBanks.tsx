@@ -22,12 +22,26 @@ const ConnectedBanks: React.FC<ConnectedBanksProps> = ({ refetchBanks }) => {
 
     console.log('🗑️ Disconnecting bank:', bankId);
     
-    // Completely disable API call for now - just update UI
-    // The backend is working (we can see the Firebase deletion logs)
-    // but the frontend is crashing, so let's just make the UI work
-    // Force new deployment with this comment
-    refetchBanks();
-    console.log('✅ Bank removed from UI (API call disabled)');
+    try {
+      const response = await fetch('/api/disconnect-simple', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uid, bankId }),
+      });
+
+      if (response.ok) {
+        console.log('✅ Bank disconnected successfully');
+        refetchBanks();
+      } else {
+        console.error('❌ Failed to disconnect bank:', response.status, response.statusText);
+        // Still update the UI even if the API fails
+        refetchBanks();
+      }
+    } catch (error) {
+      console.error('❌ Error disconnecting bank:', error);
+      // Still update the UI even if the API fails
+      refetchBanks();
+    }
   };
 
   return (
