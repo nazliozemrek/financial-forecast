@@ -1,6 +1,6 @@
-const admin = require('firebase-admin');
-const { getFirestore } = require('firebase-admin/firestore');
-const serviceAccount = require('../api/serviceAccountKey.json');
+import admin from 'firebase-admin';
+import { getFirestore } from 'firebase-admin/firestore';
+import serviceAccount from '../api/serviceAccountKey.json' assert { type: "json" };
 
 // ✅ Only initialize if not already initialized
 if (!admin.apps.length) {
@@ -11,4 +11,4 @@ if (!admin.apps.length) {
 
 const adminDb = getFirestore();
 
-module.exports = { adminDb };
+export { adminDb };
