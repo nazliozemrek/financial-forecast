@@ -1,28 +1,42 @@
 import { plaidClient } from '../lib/plaidClient.js';
 import { adminDb } from '../lib/firebaseAdmin.js';
 
-export default async function handler(req, res) {
+export const handler = async (event, context) => {
   // Enable CORS
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  };
 
   // Handle preflight requests
-  if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
+  if (event.httpMethod === 'OPTIONS') {
+    return {
+      statusCode: 200,
+      headers,
+      body: '',
+    };
   }
 
   // Only allow POST requests
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+  if (event.httpMethod !== 'POST') {
+    return {
+      statusCode: 405,
+      headers,
+      body: JSON.stringify({ error: 'Method not allowed' }),
+    };
   }
 
   try {
-    const { public_token, userId, institution } = req.body;
+    const body = JSON.parse(event.body);
+    const { public_token, userId, institution } = body;
 
     if (!public_token || !userId) {
-      return res.status(400).json({ error: 'Missing required fields' });
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ error: 'Missing required fields' }),
+      };
     }
 
     console.log('Body:', {
@@ -51,22 +65,42 @@ export default async function handler(req, res) {
       createdAt: new Date(),
     });
 
-    res.status(200).json({
-      success: true,
-      accessToken,
-      itemId,
-    });
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({
+        success: true,
+        accessToken,
+        itemId,
+      }),
+    };
   } catch (err) {
     console.error('Plaid API Error:', err.response?.data);
     
     if (err.response?.status === 400) {
-      res.status(400).json({ error: 'Invalid public token' });
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ error: 'Invalid public token' }),
+      };
     } else if (err.response?.status === 401) {
-      res.status(401).json({ error: 'Plaid authentication failed' });
+      return {
+        statusCode: 401,
+        headers,
+        body: JSON.stringify({ error: 'Plaid authentication failed' }),
+      };
     } else if (err.response?.status === 429) {
-      res.status(429).json({ error: 'Rate limit exceeded' });
+      return {
+        statusCode: 429,
+        headers,
+        body: JSON.stringify({ error: 'Rate limit exceeded' }),
+      };
     } else {
-      res.status(500).json({ error: 'Failed to exchange token' });
+      return {
+        statusCode: 500,
+        headers,
+        body: JSON.stringify({ error: 'Failed to exchange token' }),
+      };
     }
   }
-}
+};

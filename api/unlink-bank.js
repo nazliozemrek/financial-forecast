@@ -40,26 +40,39 @@ export const handler = async (event, context) => {
 
     console.log('🔄 Unlinking bank for user:', uid.substring(0, 10) + '...');
 
-    // Fetch access token from Firestore
-    const docRef = adminDb.collection('plaid_tokens').doc(uid);
-    const doc = await docRef.get();
+    // Try to find access token in different possible locations
+    let accessToken = null;
+    let docRef = null;
 
-    if (!doc.exists) {
+    // First, try the new structure (plaid_tokens collection)
+    const plaidTokensRef = adminDb.collection('plaid_tokens').doc(uid);
+    const plaidTokensDoc = await plaidTokensRef.get();
+    
+    if (plaidTokensDoc.exists) {
+      const data = plaidTokensDoc.data();
+      accessToken = data.accessToken;
+      docRef = plaidTokensRef;
+      console.log('✅ Found access token in plaid_tokens collection');
+    } else {
+      // Try the old structure (users/bankAccounts collection)
+      const bankAccountsRef = adminDb.collection('users').doc(uid).collection('bankAccounts');
+      const bankAccountsSnapshot = await bankAccountsRef.get();
+      
+      if (!bankAccountsSnapshot.empty) {
+        const firstBank = bankAccountsSnapshot.docs[0];
+        const data = firstBank.data();
+        accessToken = data.accessToken;
+        docRef = firstBank.ref;
+        console.log('✅ Found access token in users/bankAccounts collection');
+      }
+    }
+
+    if (!accessToken) {
       console.log('❌ No access token found for user:', uid.substring(0, 10) + '...');
       return {
         statusCode: 404,
         headers,
         body: JSON.stringify({ error: 'Access token not found for this user.' }),
-      };
-    }
-
-    const accessToken = doc.data()?.accessToken;
-    if (!accessToken) {
-      console.log('❌ Access token missing in document for user:', uid.substring(0, 10) + '...');
-      return {
-        statusCode: 404,
-        headers,
-        body: JSON.stringify({ error: 'Access token is missing in the document.' }),
       };
     }
 
