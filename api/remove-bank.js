@@ -24,7 +24,11 @@ module.exports = async function handler(req, res) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    console.log('🗑️ Removing bank:', bankId, 'for user:', userId);
+    console.log('🗑️ Removing bank:', {
+      bankId: bankId.substring(0, 10) + '...', // Log partial ID for security
+      userId: userId.substring(0, 10) + '...',
+      timestamp: new Date().toISOString()
+    });
 
     // Delete the bank account from Firebase
     const bankAccountRef = adminDb
@@ -35,14 +39,23 @@ module.exports = async function handler(req, res) {
 
     await bankAccountRef.delete();
 
-    console.log('✅ Bank account deleted from Firebase');
+    console.log('✅ Bank account deleted from Firebase:', bankAccountRef.path);
 
     res.status(200).json({ 
       success: true, 
-      message: 'Bank removed successfully' 
+      message: 'Bank removed successfully',
+      timestamp: new Date().toISOString()
     });
   } catch (err) {
     console.error('❌ Error removing bank:', err);
-    res.status(500).json({ error: 'Failed to remove bank' });
+    
+    // Categorize errors based on Plaid handbook
+    if (err.code === 'permission-denied') {
+      res.status(403).json({ error: 'Permission denied' });
+    } else if (err.code === 'not-found') {
+      res.status(404).json({ error: 'Bank account not found' });
+    } else {
+      res.status(500).json({ error: 'Failed to remove bank' });
+    }
   }
 };

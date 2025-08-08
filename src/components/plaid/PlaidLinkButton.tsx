@@ -52,14 +52,38 @@ const PlaidLinkButton = ({
       }
     } catch (error) {
       console.error('❌ Bank connection error:', error);
-      toast.error('Failed to connect bank. Please try again.');
+      
+      // Categorize errors based on Plaid handbook recommendations
+      if (error.response?.status === 400) {
+        toast.error('Invalid bank credentials. Please try again.');
+      } else if (error.response?.status === 401) {
+        toast.error('Authentication failed. Please check your Plaid configuration.');
+      } else if (error.response?.status === 429) {
+        toast.error('Too many requests. Please wait a moment and try again.');
+      } else if (error.code === 'NETWORK_ERROR') {
+        toast.error('Network error. Please check your connection and try again.');
+      } else {
+        toast.error('Failed to connect bank. Please try again.');
+      }
     }
   };
 
   const onExit = (err: any, metadata: any) => {
     if (err) {
       console.error('❌ Plaid Link exit with error:', err);
-      toast.error('Bank connection was cancelled or failed.');
+      
+      // Categorize exit errors based on Plaid handbook
+      if (err.error_code === 'INVALID_CREDENTIALS') {
+        toast.error('Invalid bank credentials. Please check your username and password.');
+      } else if (err.error_code === 'ITEM_LOGIN_REQUIRED') {
+        toast.error('Bank login required. Please try again.');
+      } else if (err.error_code === 'INSTITUTION_DOWN') {
+        toast.error('Bank is temporarily unavailable. Please try again later.');
+      } else if (err.error_code === 'USER_SETUP_REQUIRED') {
+        toast.error('Additional setup required. Please contact your bank.');
+      } else {
+        toast.error('Bank connection was cancelled or failed.');
+      }
     } else {
       console.log('ℹ️ Plaid Link exited normally');
     }

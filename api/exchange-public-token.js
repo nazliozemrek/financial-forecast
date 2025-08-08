@@ -41,7 +41,12 @@ module.exports = async function handler(req, res) {
     }
 
     console.log('🔥 /exchange_public_token hit!');
-    console.log('Body:', { public_token, userId, institution });
+    console.log('Body:', { 
+      public_token: public_token.substring(0, 20) + '...', // Log partial token for security
+      userId, 
+      institution: institution?.name || 'Unknown',
+      institution_id: institution?.institution_id || 'Unknown'
+    });
 
     // Exchange public token for access token
     const response = await plaidClient.itemPublicTokenExchange({
@@ -49,7 +54,10 @@ module.exports = async function handler(req, res) {
     });
 
     const accessToken = response.data.access_token;
-    console.log('✅ Got access token:', accessToken);
+    const itemId = response.data.item_id;
+    
+    console.log('✅ Got access token:', accessToken.substring(0, 20) + '...');
+    console.log('✅ Item ID:', itemId);
 
     // Save access token to Firebase (via shared Admin instance)
     const bankAccountRef = adminDb
@@ -59,6 +67,7 @@ module.exports = async function handler(req, res) {
       .doc();
     await bankAccountRef.set({
       accessToken,
+      itemId,
       institution: institution || {},
       createdAt: new Date(),
     });
@@ -68,6 +77,7 @@ module.exports = async function handler(req, res) {
     res.status(200).json({ 
       success: true, 
       accessToken,
+      itemId,
       bankAccountId: bankAccountRef.id 
     });
   } catch (err) {
@@ -78,11 +88,13 @@ module.exports = async function handler(req, res) {
       console.error('Plaid API Error:', err.response.data);
     }
     
-    // Return more specific error messages
+    // Return more specific error messages based on Plaid handbook
     if (err.response?.status === 400) {
       res.status(400).json({ error: 'Invalid public token' });
     } else if (err.response?.status === 401) {
       res.status(401).json({ error: 'Plaid authentication failed' });
+    } else if (err.response?.status === 429) {
+      res.status(429).json({ error: 'Rate limit exceeded' });
     } else {
       res.status(500).json({ error: 'Failed to exchange token' });
     }
