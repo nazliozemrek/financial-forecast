@@ -163,7 +163,7 @@ export function useFinancialForecastApp() {
       for (const connection of bankConnections) {
         if (!connection.accessToken) continue;
         
-        const res = await fetch("/api/transactions", {
+        const res = await fetch("/.netlify/functions/transactions", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ access_token: connection.accessToken }),

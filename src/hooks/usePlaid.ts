@@ -33,7 +33,7 @@ export function usePlaid() {
 
   const fetchTransactions = async (accessToken: string) => {
     try {
-      const res = await fetch("/api/transactions", {
+              const res = await fetch("/.netlify/functions/transactions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ access_token: accessToken }),
