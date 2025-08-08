@@ -2,11 +2,10 @@ import React, { useState } from 'react';
 import { 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
-  GoogleAuthProvider, 
   signInWithPopup,
   updateProfile 
 } from 'firebase/auth';
-import { auth } from '../../firebase/config';
+import { auth, provider } from '../../firebase/config';
 import { toast } from 'react-hot-toast';
 import { Mail, Lock, User, Eye, EyeOff } from 'lucide-react';
 
@@ -68,7 +67,6 @@ const Login = () => {
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
     try {
-      const provider = new GoogleAuthProvider();
       await signInWithPopup(auth, provider);
       toast.success('Signed in with Google successfully!');
     } catch (error: any) {

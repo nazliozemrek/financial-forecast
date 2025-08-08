@@ -34,9 +34,12 @@ module.exports = async function handler(req, res) {
 
   try {
     const { userId } = req.body;
+    
     if (!userId) {
       return res.status(400).json({ error: 'Missing userId in request body' });
     }
+
+    console.log('🔄 Creating link token for user:', userId.substring(0, 10) + '...');
 
     const response = await plaidClient.linkTokenCreate({
       user: { 
@@ -52,13 +55,12 @@ module.exports = async function handler(req, res) {
           account_subtypes: ['checking', 'savings'],
         },
       },
-      // Enable webhook for better error handling (optional)
-      webhook: process.env.PLAID_WEBHOOK_URL || null,
     });
 
+    console.log('✅ Link token created successfully');
     res.status(200).json({ link_token: response.data.link_token });
   } catch (err) {
-    console.error("PLAID ERROR:", err.response?.data || err.message || err);
+    console.error("❌ PLAID ERROR:", err.response?.data || err.message || err);
     res.status(500).json({ error: 'Unable to create link token' });
   }
 };
