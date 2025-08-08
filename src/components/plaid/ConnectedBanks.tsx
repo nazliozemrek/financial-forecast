@@ -23,13 +23,30 @@ const ConnectedBanks: React.FC<ConnectedBanksProps> = ({ refetchBanks }) => {
     console.log('🗑️ Disconnecting bank:', bankId);
     
     try {
-      // Try to update the UI by refetching banks
+      // Call the disconnect API
+      const response = await fetch('/api/disconnect-bank', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: uid,
+          bankId: bankId,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to disconnect bank');
+      }
+
+      console.log('✅ Bank disconnected from backend');
+      
+      // Update the UI by refetching banks
       refetchBanks();
       console.log('✅ Bank removed from UI');
     } catch (error) {
-      console.error('❌ Error updating UI:', error);
-      // Even if refetch fails, log the action
-      console.log('✅ Bank disconnect action logged');
+      console.error('❌ Error disconnecting bank:', error);
+      alert('Failed to disconnect bank. Please try again.');
     }
   };
 
