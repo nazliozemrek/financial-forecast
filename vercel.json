@@ -1,9 +1,7 @@
 {
   "version": 2,
-  "redirects": [
-    { "source": "/", "destination": "/forecast", "permanent": false }
-  ],
   "routes": [
+    { "src": "^/$", "status": 308, "headers": { "Location": "/forecast" } },
     { "src": "/api/(.*)", "dest": "/api/$1" },
     { "handle": "filesystem" },
     { "src": "/(.*)", "dest": "/index.html" }
