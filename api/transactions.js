@@ -33,7 +33,15 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { accessToken, startDate, endDate } = req.body;
+    // Accept both camelCase and snake_case from the client
+    const body = req.body || {};
+    const accessToken = body.accessToken || body.access_token;
+
+    // Provide sensible default date range (last 180 days)
+    const endDate = body.endDate || new Date().toISOString().slice(0, 10);
+    const startDate = body.startDate || new Date(Date.now() - 180 * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .slice(0, 10);
 
     if (!accessToken) {
       return res.status(400).json({ error: 'Missing access token' });
@@ -56,18 +64,13 @@ export default async function handler(req, res) {
         break;
       } catch (err) {
         retries++;
-        console.log(`🔁 Retry ${retries}: ${err.response?.data?.error_code || err.message}`);
-        
         if (retries >= maxRetries) {
           throw err;
         }
-        
-        // Wait before retrying
         await new Promise(resolve => setTimeout(resolve, 1000 * retries));
       }
     }
 
-    // Sanitize transactions before sending to client
     const sanitizedTransactions = transactions.map(transaction => ({
       id: transaction.transaction_id,
       name: transaction.name,
@@ -76,12 +79,10 @@ export default async function handler(req, res) {
       category: transaction.category,
       pending: transaction.pending,
       account_id: transaction.account_id,
-      // Don't include sensitive fields like account_number, etc.
     }));
 
     res.status(200).json({ transactions: sanitizedTransactions });
   } catch (err) {
-    console.error('❌ Error fetching transactions:', err);
     res.status(500).json({ error: 'Failed to fetch transactions' });
   }
 }
