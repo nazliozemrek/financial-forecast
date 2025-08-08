@@ -2,6 +2,7 @@
 import React from 'react';
 import { useBanks } from '../../hooks/useBanks';
 import { useAuth } from '../../hooks/useAuth';
+import { toast } from 'react-hot-toast';
 
 interface ConnectedBanksProps {
   bankConnections: any[];
@@ -24,18 +25,35 @@ const ConnectedBanks: React.FC<ConnectedBanksProps> = ({ bankConnections, onDisc
     console.log('🗑️ Disconnecting bank:', bankId);
     
     try {
-      // For now, just update the UI immediately since API is not working
-      // TODO: Fix Vercel API deployment and restore API call
-      console.log('✅ Bank removed from UI (frontend-only for now)');
+      // Call the disconnect API with proper Plaid unlinking
+      const response = await fetch('/api/remove-bank', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: uid,
+          bankId: bankId,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to disconnect bank');
+      }
+
+      const result = await response.json();
+      console.log('✅ Bank disconnected successfully:', result);
       
-      // Call the parent's onDisconnect function
+      // Call the parent's onDisconnect function to update UI
       onDisconnect();
       
       // Show success message
-      alert('Bank disconnected successfully! (Note: API call temporarily disabled due to deployment issue)');
+      toast.success('Bank disconnected successfully!');
     } catch (error) {
       console.error('❌ Error disconnecting bank:', error);
-      alert('Failed to disconnect bank. Please try again.');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to disconnect bank. Please try again.';
+      toast.error(errorMessage);
     }
   };
 

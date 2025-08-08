@@ -1,4 +1,20 @@
+const { Configuration, PlaidApi, PlaidEnvironments } = require('plaid');
+const dotenv = require('dotenv');
 const { adminDb } = require('../backend/firebaseAdmin.mjs');
+
+dotenv.config();
+
+const config = new Configuration({
+  basePath: PlaidEnvironments[process.env.PLAID_ENV || 'sandbox'],
+  baseOptions: {
+    headers: {
+      'PLAID-CLIENT-ID': process.env.PLAID_CLIENT_ID,
+      'PLAID-SECRET': process.env.PLAID_SECRET,
+    },
+  },
+});
+
+const plaidClient = new PlaidApi(config);
 
 module.exports = async function handler(req, res) {
   // Enable CORS
@@ -30,15 +46,41 @@ module.exports = async function handler(req, res) {
       timestamp: new Date().toISOString()
     });
 
-    // Delete the bank account from Firebase
+    // First, get the bank account data to retrieve the access token
     const bankAccountRef = adminDb
       .collection('users')
       .doc(userId)
       .collection('bankAccounts')
       .doc(bankId);
 
-    await bankAccountRef.delete();
+    const bankAccountDoc = await bankAccountRef.get();
+    
+    if (!bankAccountDoc.exists) {
+      return res.status(404).json({ error: 'Bank account not found' });
+    }
 
+    const bankData = bankAccountDoc.data();
+    const accessToken = bankData.accessToken;
+
+    if (!accessToken) {
+      console.warn('⚠️ No access token found for bank account');
+    } else {
+      try {
+        // Step 1: Call Plaid's /item/remove endpoint to properly deauthorize the Item
+        console.log('🔄 Calling Plaid /item/remove endpoint...');
+        await plaidClient.itemRemove({
+          access_token: accessToken,
+        });
+        console.log('✅ Successfully deauthorized Item with Plaid');
+      } catch (plaidError) {
+        console.error('❌ Error calling Plaid /item/remove:', plaidError);
+        // Continue with local deletion even if Plaid call fails
+        // This ensures we don't leave orphaned data in our database
+      }
+    }
+
+    // Step 2: Delete from our database
+    await bankAccountRef.delete();
     console.log('✅ Bank account deleted from Firebase:', bankAccountRef.path);
 
     res.status(200).json({ 
