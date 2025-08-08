@@ -72,6 +72,19 @@ export default async function handler(req, res) {
     });
   } catch (err) {
     console.error('❌ Error exchanging token:', err);
-    res.status(500).json({ error: 'Failed to exchange token' });
+    
+    // Log specific Plaid error details
+    if (err.response?.data) {
+      console.error('Plaid API Error:', err.response.data);
+    }
+    
+    // Return more specific error messages
+    if (err.response?.status === 400) {
+      res.status(400).json({ error: 'Invalid public token' });
+    } else if (err.response?.status === 401) {
+      res.status(401).json({ error: 'Plaid authentication failed' });
+    } else {
+      res.status(500).json({ error: 'Failed to exchange token' });
+    }
   }
 }

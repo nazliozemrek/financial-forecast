@@ -46,6 +46,14 @@ export default async function handler(req, res) {
       products: ['transactions'],
       country_codes: ['US'],
       language: 'en',
+      // Sandbox-specific configurations
+      account_filters: {
+        depository: {
+          account_subtypes: ['checking', 'savings'],
+        },
+      },
+      // Enable webhook for better error handling (optional)
+      webhook: process.env.PLAID_WEBHOOK_URL || null,
     });
 
     res.status(200).json({ link_token: response.data.link_token });
