@@ -1,4 +1,22 @@
-import { adminDb } from '../backend/firebaseAdmin.mjs';
+import { Configuration, PlaidApi, PlaidEnvironments } from 'plaid';
+import dotenv from 'dotenv';
+import { initializeApp, cert, getApps } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
+
+dotenv.config();
+
+// Initialize Firebase Admin
+const serviceAccount = JSON.parse(
+  Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64, 'base64').toString()
+);
+
+if (!getApps().length) {
+  initializeApp({
+    credential: cert(serviceAccount),
+  });
+}
+
+const db = getFirestore();
 
 export default async function handler(req, res) {
   // Enable CORS
@@ -27,7 +45,7 @@ export default async function handler(req, res) {
     console.log(`🗑️ Attempting to disconnect bank: uid=${uid}, bankId=${bankId}`);
     
     const basePath = `users/${uid}/bankAccounts`;
-    const collectionRef = adminDb.collection(basePath);
+    const collectionRef = db.collection(basePath);
     
     let deletedCount = 0;
 
@@ -37,7 +55,7 @@ export default async function handler(req, res) {
       const snap = await collectionRef.where('institution.institution_id', '==', bankId).get();
       
       if (!snap.empty) {
-        const batch = adminDb.batch();
+        const batch = db.batch();
         snap.forEach((doc) => {
           batch.delete(doc.ref);
           deletedCount += 1;
