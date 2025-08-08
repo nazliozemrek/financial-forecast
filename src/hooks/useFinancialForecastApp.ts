@@ -184,15 +184,26 @@ export function useFinancialForecastApp() {
           ...item,
           id:`${item.title}-${item.amount}-${item.frequency}`.replace(/\s+/g,''),
           recurring:true,
+          frequency: item.frequency as 'monthly' | 'weekly' | 'daily' | 'bi-weekly',
+          startDate: item.startDate.toISOString().slice(0, 10)
       }));
       const expandedRecurringEvents = expandRecurringTransactions(recurringWithIds);
 
       setEvents(prev => {
         const existingIds = new Set(prev.map(e => e.id));
-        const uniqueNewEvents = expandedRecurringEvents.filter(e => !existingIds.has(e.id));
+        const uniqueNewEvents = expandedRecurringEvents.filter(e => !existingIds.has(Number(e.id)));
         const nonRecurring = prev.filter(e => !e.recurring);
-        return [...nonRecurring, ...uniqueNewEvents];
+        return [...nonRecurring, ...uniqueNewEvents.map(e => ({
+          ...e,
+          id: Number(e.id.replace(/[^0-9]/g, '')) || Math.floor(Math.random() * 1000000)
+        }))];
       });
+
+      // Show both transaction and event counts
+      const totalEvents = allTransactions.length + expandedRecurringEvents.length;
+      if (expandedRecurringEvents.length > 0) {
+        toast.success(`${allTransactions.length} transactions → ${totalEvents} events (including ${expandedRecurringEvents.length} recurring)`);
+      }
 
     } catch (err) {
       toast.error("Failed to fetch transactions");
