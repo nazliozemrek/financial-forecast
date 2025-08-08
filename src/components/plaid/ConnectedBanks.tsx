@@ -76,7 +76,7 @@ const ConnectedBanks: React.FC<ConnectedBanksProps> = ({ refetchBanks }) => {
                   </div>
                 </div>
                 <button
-                  onClick={() => handleDisconnect(bank.id)}
+                  onClick={() => handleDisconnect(bank.institution?.institution_id || bank.id)}
                   className="px-3 py-1 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all duration-200 shadow-md"
                 >
                   Disconnect
