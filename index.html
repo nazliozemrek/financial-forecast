@@ -28,6 +28,17 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     
     <title>Financial Forecast - Smart Financial Planning</title>
+    <script>
+      // Redirect root to /forecast on first paint (SSR/CDN fallback)
+      (function(){
+        try {
+          var path = window.location.pathname || '/';
+          if (path === '/' || path === '') {
+            window.location.replace('/forecast');
+          }
+        } catch (e) { /* no-op */ }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
