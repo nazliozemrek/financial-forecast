@@ -22,11 +22,9 @@ const ConnectedBanks: React.FC<ConnectedBanksProps> = ({ refetchBanks }) => {
 
     console.log('🗑️ Disconnecting bank:', bankId);
     
-    // Completely disable API call to fix JavaScript error
-    // The backend is working (we can see the Firebase deletion logs)
-    // but the frontend is crashing, so let's just make the UI work
-    refetchBanks();
-    console.log('✅ Bank removed from UI (API call disabled to fix JS error)');
+    // Just log the action - no API call, no refetch
+    // This will help us identify if refetchBanks is causing the error
+    console.log('✅ Bank disconnect action logged (no API call, no refetch)');
   };
 
   return (
