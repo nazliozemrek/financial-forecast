@@ -1,5 +1,22 @@
-// api/disconnect_bank.mjs
-import { adminDb } from '../backend/firebaseAdmin.mjs';
+import { Configuration, PlaidApi, PlaidEnvironments } from 'plaid';
+import dotenv from 'dotenv';
+import { initializeApp, cert, getApps } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
+
+dotenv.config();
+
+// Initialize Firebase Admin
+const serviceAccount = JSON.parse(
+  Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64, 'base64').toString()
+);
+
+if (!getApps().length) {
+  initializeApp({
+    credential: cert(serviceAccount),
+  });
+}
+
+const db = getFirestore();
 
 export default async function handler(req, res) {
   // Enable CORS
@@ -28,13 +45,13 @@ export default async function handler(req, res) {
 
   try {
     let deletedCount = 0;
-    const collectionRef = adminDb.collection(basePath);
+    const collectionRef = db.collection(basePath);
 
     // Case A: bankId looks like an institution id (ins_XXXX)
     if (typeof bankId === 'string' && bankId.startsWith('ins_')) {
       console.log(`🔎 Querying docs by institution_id=${bankId} under ${basePath}`);
       const snap = await collectionRef.where('institution.institution_id', '==', bankId).get();
-      const batch = adminDb.batch();
+      const batch = db.batch();
       snap.forEach((doc) => {
         batch.delete(doc.ref);
         deletedCount += 1;
@@ -61,7 +78,7 @@ export default async function handler(req, res) {
         const siblings = await collectionRef
           .where('institution.institution_id', '==', institutionId)
           .get();
-        const batch = adminDb.batch();
+        const batch = db.batch();
         siblings.forEach((doc) => {
           if (doc.id !== bankId) {
             batch.delete(doc.ref);
