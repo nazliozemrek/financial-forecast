@@ -1,20 +1,5 @@
-import { Configuration, PlaidApi, PlaidEnvironments } from 'plaid';
-import dotenv from 'dotenv';
-import { adminDb } from '../backend/firebaseAdmin.js';
-
-dotenv.config();
-
-const config = new Configuration({
-  basePath: PlaidEnvironments[process.env.PLAID_ENV || 'sandbox'],
-  baseOptions: {
-    headers: {
-      'PLAID-CLIENT-ID': process.env.PLAID_CLIENT_ID,
-      'PLAID-SECRET': process.env.PLAID_SECRET,
-    },
-  },
-});
-
-const plaidClient = new PlaidApi(config);
+import { plaidClient } from '../lib/plaidClient.js';
+import { adminDb } from '../lib/firebaseAdmin.js';
 
 export default async function handler(req, res) {
   // Enable CORS
@@ -57,14 +42,9 @@ export default async function handler(req, res) {
     console.log('✅ Got access token:', accessToken.substring(0, 20) + '...');
     console.log('✅ Item ID:', itemId);
 
-    // Save to Firebase
-    const bankAccountRef = adminDb
-      .collection('users')
-      .doc(userId)
-      .collection('bankAccounts')
-      .doc();
-
-    await bankAccountRef.set({
+    // Save to Firebase - using the new structure
+    const docRef = adminDb.collection('plaid_tokens').doc(userId);
+    await docRef.set({
       accessToken,
       itemId,
       institution: institution || {},
@@ -75,7 +55,6 @@ export default async function handler(req, res) {
       success: true,
       accessToken,
       itemId,
-      bankAccountId: bankAccountRef.id,
     });
   } catch (err) {
     console.error('Plaid API Error:', err.response?.data);
