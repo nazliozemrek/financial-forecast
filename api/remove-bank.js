@@ -1,6 +1,6 @@
 const { Configuration, PlaidApi, PlaidEnvironments } = require('plaid');
 const dotenv = require('dotenv');
-const { adminDb } = require('../backend/firebaseAdmin.mjs');
+const { adminDb } = require('../backend/firebaseAdmin.js');
 
 dotenv.config();
 
