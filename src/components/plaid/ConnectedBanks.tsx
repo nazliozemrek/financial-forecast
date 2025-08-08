@@ -23,22 +23,22 @@ const ConnectedBanks: React.FC<ConnectedBanksProps> = ({ refetchBanks }) => {
     console.log('🗑️ Disconnecting bank:', bankId);
     
     try {
-      const response = await fetch('/api/disconnect-bank', {
+      const response = await fetch('/api/delete-bank', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ uid, bankId }),
       });
 
       if (response.ok) {
-        console.log('✅ Bank disconnected successfully');
+        console.log('✅ Bank deleted successfully');
         refetchBanks();
       } else {
-        console.error('❌ Failed to disconnect bank:', response.status, response.statusText);
+        console.error('❌ Failed to delete bank:', response.status, response.statusText);
         // Still update the UI even if the API fails
         refetchBanks();
       }
     } catch (error) {
-      console.error('❌ Error disconnecting bank:', error);
+      console.error('❌ Error deleting bank:', error);
       // Still update the UI even if the API fails
       refetchBanks();
     }
