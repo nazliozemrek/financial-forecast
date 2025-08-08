@@ -1,6 +1,6 @@
-import { Configuration, PlaidApi, PlaidEnvironments } from 'plaid';
-import dotenv from 'dotenv';
-import { adminDb } from '../backend/firebaseAdmin.mjs';
+const { Configuration, PlaidApi, PlaidEnvironments } = require('plaid');
+const dotenv = require('dotenv');
+const { adminDb } = require('../backend/firebaseAdmin.mjs');
 
 dotenv.config();
 
@@ -16,7 +16,7 @@ const config = new Configuration({
 
 const plaidClient = new PlaidApi(config);
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   // Enable CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
@@ -87,4 +87,4 @@ export default async function handler(req, res) {
       res.status(500).json({ error: 'Failed to exchange token' });
     }
   }
-}
+};
