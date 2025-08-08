@@ -1,6 +1,6 @@
-const { Configuration, PlaidApi, PlaidEnvironments } = require('plaid');
-const dotenv = require('dotenv');
-const { adminDb } = require('../backend/firebaseAdmin.js');
+import { Configuration, PlaidApi, PlaidEnvironments } from 'plaid';
+import dotenv from 'dotenv';
+import { adminDb } from '../backend/firebaseAdmin.js';
 
 dotenv.config();
 
@@ -16,7 +16,7 @@ const config = new Configuration({
 
 const plaidClient = new PlaidApi(config);
 
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   // Enable CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
@@ -54,7 +54,7 @@ module.exports = async function handler(req, res) {
       .doc(bankId);
 
     const bankAccountDoc = await bankAccountRef.get();
-    
+
     if (!bankAccountDoc.exists) {
       return res.status(404).json({ error: 'Bank account not found' });
     }
@@ -83,14 +83,14 @@ module.exports = async function handler(req, res) {
     await bankAccountRef.delete();
     console.log('✅ Bank account deleted from Firebase:', bankAccountRef.path);
 
-    res.status(200).json({ 
-      success: true, 
+    res.status(200).json({
+      success: true,
       message: 'Bank removed successfully',
       timestamp: new Date().toISOString()
     });
   } catch (err) {
     console.error('❌ Error removing bank:', err);
-    
+
     // Categorize errors based on Plaid handbook
     if (err.code === 'permission-denied') {
       res.status(403).json({ error: 'Permission denied' });
@@ -100,4 +100,4 @@ module.exports = async function handler(req, res) {
       res.status(500).json({ error: 'Failed to remove bank' });
     }
   }
-};
+}

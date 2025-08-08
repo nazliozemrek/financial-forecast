@@ -1,6 +1,6 @@
-const { Configuration, PlaidApi, PlaidEnvironments } = require('plaid');
-const dotenv = require('dotenv');
-const { adminDb } = require('../backend/firebaseAdmin.js');
+import { Configuration, PlaidApi, PlaidEnvironments } from 'plaid';
+import dotenv from 'dotenv';
+import { adminDb } from '../backend/firebaseAdmin.js';
 
 dotenv.config();
 
@@ -16,7 +16,7 @@ const config = new Configuration({
 
 const plaidClient = new PlaidApi(config);
 
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   // Enable CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
@@ -40,31 +40,30 @@ module.exports = async function handler(req, res) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    console.log('🔥 /exchange_public_token hit!');
-    console.log('Body:', { 
-      public_token: public_token.substring(0, 20) + '...', // Log partial token for security
-      userId, 
+    console.log('Body:', {
+      public_token: public_token.substring(0, 20) + '...',
+      userId,
       institution: institution?.name || 'Unknown',
       institution_id: institution?.institution_id || 'Unknown'
     });
 
-    // Exchange public token for access token
     const response = await plaidClient.itemPublicTokenExchange({
       public_token: public_token,
     });
 
     const accessToken = response.data.access_token;
     const itemId = response.data.item_id;
-    
+
     console.log('✅ Got access token:', accessToken.substring(0, 20) + '...');
     console.log('✅ Item ID:', itemId);
 
-    // Save access token to Firebase (via shared Admin instance)
+    // Save to Firebase
     const bankAccountRef = adminDb
       .collection('users')
       .doc(userId)
       .collection('bankAccounts')
       .doc();
+
     await bankAccountRef.set({
       accessToken,
       itemId,
@@ -72,23 +71,15 @@ module.exports = async function handler(req, res) {
       createdAt: new Date(),
     });
 
-    console.log('✅ Saved access token to', bankAccountRef.path);
-
-    res.status(200).json({ 
-      success: true, 
+    res.status(200).json({
+      success: true,
       accessToken,
       itemId,
-      bankAccountId: bankAccountRef.id 
+      bankAccountId: bankAccountRef.id,
     });
   } catch (err) {
-    console.error('❌ Error exchanging token:', err);
+    console.error('Plaid API Error:', err.response?.data);
     
-    // Log specific Plaid error details
-    if (err.response?.data) {
-      console.error('Plaid API Error:', err.response.data);
-    }
-    
-    // Return more specific error messages based on Plaid handbook
     if (err.response?.status === 400) {
       res.status(400).json({ error: 'Invalid public token' });
     } else if (err.response?.status === 401) {
@@ -99,4 +90,4 @@ module.exports = async function handler(req, res) {
       res.status(500).json({ error: 'Failed to exchange token' });
     }
   }
-};
+}
