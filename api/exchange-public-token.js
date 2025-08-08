@@ -1,22 +1,8 @@
 import { Configuration, PlaidApi, PlaidEnvironments } from 'plaid';
 import dotenv from 'dotenv';
-import { initializeApp, cert, getApps } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
+import { adminDb } from '../backend/firebaseAdmin.mjs';
 
 dotenv.config();
-
-// Initialize Firebase Admin
-const serviceAccount = JSON.parse(
-  Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64, 'base64').toString()
-);
-
-if (!getApps().length) {
-  initializeApp({
-    credential: cert(serviceAccount),
-  });
-}
-
-const db = getFirestore();
 
 const config = new Configuration({
   basePath: PlaidEnvironments[process.env.PLAID_ENV || 'sandbox'],
@@ -65,8 +51,12 @@ export default async function handler(req, res) {
     const accessToken = response.data.access_token;
     console.log('✅ Got access token:', accessToken);
 
-    // Save access token to Firebase
-    const bankAccountRef = db.collection('users').doc(userId).collection('bankAccounts').doc();
+    // Save access token to Firebase (via shared Admin instance)
+    const bankAccountRef = adminDb
+      .collection('users')
+      .doc(userId)
+      .collection('bankAccounts')
+      .doc();
     await bankAccountRef.set({
       accessToken,
       institution: institution || {},
