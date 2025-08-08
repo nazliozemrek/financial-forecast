@@ -189,13 +189,12 @@ const FinancialForecastApp = () => {
       return;
     }
     try {
-      for (const { accessToken } of bankConnections) {
-        await fetch('/api/unlink-bank', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ access_token: accessToken }),
-        });
-      }
+      // Send the user ID instead of access token - the backend will find the access token
+      await fetch('/api/unlink-bank', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uid: user?.uid }),
+      });
       setBankConnections([]);
       setShowDisconnectModal(false);
       toast.success('Disconnected all banks successfully');
