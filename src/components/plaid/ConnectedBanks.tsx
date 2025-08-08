@@ -25,8 +25,8 @@ const ConnectedBanks: React.FC<ConnectedBanksProps> = ({ bankConnections, onDisc
     console.log('🗑️ Disconnecting bank:', bankId);
     
     try {
-      // Call the disconnect API with proper Plaid unlinking
-      const response = await fetch('/api/remove-bank', {
+                // Call the disconnect API with proper Plaid unlinking
+          const response = await fetch('/api/remove-bank-simple', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
