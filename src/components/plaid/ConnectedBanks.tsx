@@ -26,7 +26,7 @@ const ConnectedBanks: React.FC<ConnectedBanksProps> = ({ bankConnections, onDisc
     
     try {
                 // Call the disconnect API with proper Plaid unlinking
-          const response = await fetch('/.netlify/functions/unlink-bank', {
+          const response = await fetch('/api/unlink-bank', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

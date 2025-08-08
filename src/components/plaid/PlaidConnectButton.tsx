@@ -38,7 +38,7 @@ const PlaidConnectButton = ({
     }
 
     try {
-              const res = await axios.post('/.netlify/functions/exchange-public-token', {
+              const res = await axios.post('/api/exchange-public-token', {
         public_token,
         userId,
         institution: metadata.institution || {},

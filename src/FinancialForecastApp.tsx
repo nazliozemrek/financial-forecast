@@ -190,7 +190,7 @@ const FinancialForecastApp = () => {
     }
     try {
       for (const { accessToken } of bankConnections) {
-        await fetch('/.netlify/functions/unlink-bank', {
+        await fetch('/api/unlink-bank', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ access_token: accessToken }),
