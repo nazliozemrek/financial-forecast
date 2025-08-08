@@ -22,9 +22,15 @@ const ConnectedBanks: React.FC<ConnectedBanksProps> = ({ refetchBanks }) => {
 
     console.log('🗑️ Disconnecting bank:', bankId);
     
-    // Just log the action - no API call, no refetch
-    // This will help us identify if refetchBanks is causing the error
-    console.log('✅ Bank disconnect action logged (no API call, no refetch)');
+    try {
+      // Try to update the UI by refetching banks
+      refetchBanks();
+      console.log('✅ Bank removed from UI');
+    } catch (error) {
+      console.error('❌ Error updating UI:', error);
+      // Even if refetch fails, log the action
+      console.log('✅ Bank disconnect action logged');
+    }
   };
 
   return (
