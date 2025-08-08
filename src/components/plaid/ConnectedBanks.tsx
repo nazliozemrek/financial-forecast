@@ -26,13 +26,14 @@ const ConnectedBanks: React.FC<ConnectedBanksProps> = ({ bankConnections, onDisc
     
     try {
                 // Call the disconnect API with proper Plaid unlinking
-          const response = await fetch('/api/unlink-bank', {
+          const response = await fetch('/api/remove-bank-simple', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
                     body: JSON.stringify({
-              uid: uid,
+              userId: uid,
+              bankId: bankId,
             }),
       });
 
